@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Trophy } from "lucide-react";
 import { AppShell, Delta } from "@/components/AppShell";
 import { START_CASH, useMarket } from "@/lib/store";
@@ -31,7 +31,7 @@ function Leaderboard() {
           <div key={p.name} className={`flex items-center gap-4 px-4 py-3 text-sm transition-colors ${p.isYou ? "bg-primary/10" : ""}`}>
             <span className={`num w-8 ${i < 3 ? "text-gold" : "text-muted-foreground"}`}>{i < 3 ? <Trophy className="h-4 w-4" /> : `#${i + 1}`}</span>
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-xs font-semibold">{p.name.slice(0, 2).toUpperCase()}</span>
-            <span className={`flex-1 ${p.isYou ? "font-semibold text-primary" : ""}`}>{p.name}</span>
+            {p.isYou ? <Link to="/profile" className="flex-1 font-semibold text-primary hover:underline">{p.name}</Link> : <Link to="/trader/$name" params={{ name: p.name }} className="flex-1 hover:underline">{p.name}</Link>}
             <span className="num">{fmt(p.value, 0)} NX$</span>
             <Delta v={(p.value - START_CASH) / START_CASH} className="w-24 text-right" />
           </div>

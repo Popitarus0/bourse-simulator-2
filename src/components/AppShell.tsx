@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { Activity, Briefcase, LayoutGrid, Newspaper, Trophy } from "lucide-react";
+import { Activity, User, Briefcase, LayoutGrid, Newspaper, Trophy } from "lucide-react";
+import { AdminPanel } from "./AdminPanel";
 import { useMarket } from "@/lib/store";
 import { change, fmt, fmtPct } from "@/lib/market";
 
@@ -50,6 +51,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-5 text-xs">
+            <Link to="/profile" aria-label="Profil" className="order-last flex h-8 w-8 items-center justify-center rounded-full bg-accent hover:bg-primary/20"><User className="h-4 w-4" /></Link>
             <div className="text-right"><div className="text-muted-foreground">Valeur totale</div><div className="num text-sm font-medium">{fmt(portfolioValue)} NX$</div></div>
             <div className="hidden text-right sm:block"><div className="text-muted-foreground">Liquidités</div><div className="num text-sm">{fmt(account.cash)}</div></div>
           </div>
@@ -64,6 +66,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </Link>
         ))}
       </nav>
+      <AdminPanel />
     </div>
   );
 }

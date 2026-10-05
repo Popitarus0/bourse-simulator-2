@@ -14,7 +14,9 @@ import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as MarketRouteImport } from './routes/market'
 import { Route as NewsRouteImport } from './routes/news'
 import { Route as PortfolioRouteImport } from './routes/portfolio'
+import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as StockTickerRouteImport } from './routes/stock.$ticker'
+import { Route as TraderNameRouteImport } from './routes/trader.$name'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -41,9 +43,19 @@ const PortfolioRoute = PortfolioRouteImport.update({
   path: '/portfolio',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StockTickerRoute = StockTickerRouteImport.update({
   id: '/stock/$ticker',
   path: '/stock/$ticker',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TraderNameRoute = TraderNameRouteImport.update({
+  id: '/trader/$name',
+  path: '/trader/$name',
   getParentRoute: () => rootRouteImport,
 } as any)
 
@@ -53,7 +65,9 @@ export interface FileRoutesByFullPath {
   '/market': typeof MarketRoute
   '/news': typeof NewsRoute
   '/portfolio': typeof PortfolioRoute
+  '/profile': typeof ProfileRoute
   '/stock/$ticker': typeof StockTickerRoute
+  '/trader/$name': typeof TraderNameRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -61,7 +75,9 @@ export interface FileRoutesByTo {
   '/market': typeof MarketRoute
   '/news': typeof NewsRoute
   '/portfolio': typeof PortfolioRoute
+  '/profile': typeof ProfileRoute
   '/stock/$ticker': typeof StockTickerRoute
+  '/trader/$name': typeof TraderNameRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -70,15 +86,31 @@ export interface FileRoutesById {
   '/market': typeof MarketRoute
   '/news': typeof NewsRoute
   '/portfolio': typeof PortfolioRoute
+  '/profile': typeof ProfileRoute
   '/stock/$ticker': typeof StockTickerRoute
+  '/trader/$name': typeof TraderNameRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/leaderboard' | '/market' | '/news' | '/portfolio' | '/stock/$ticker'
+    | '/'
+    | '/leaderboard'
+    | '/market'
+    | '/news'
+    | '/portfolio'
+    | '/profile'
+    | '/stock/$ticker'
+    | '/trader/$name'
   fileRoutesByTo: FileRoutesByTo
   to:
-    '/' | '/leaderboard' | '/market' | '/news' | '/portfolio' | '/stock/$ticker'
+    | '/'
+    | '/leaderboard'
+    | '/market'
+    | '/news'
+    | '/portfolio'
+    | '/profile'
+    | '/stock/$ticker'
+    | '/trader/$name'
   id:
     | '__root__'
     | '/'
@@ -86,7 +118,9 @@ export interface FileRouteTypes {
     | '/market'
     | '/news'
     | '/portfolio'
+    | '/profile'
     | '/stock/$ticker'
+    | '/trader/$name'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -95,7 +129,9 @@ export interface RootRouteChildren {
   MarketRoute: typeof MarketRoute
   NewsRoute: typeof NewsRoute
   PortfolioRoute: typeof PortfolioRoute
+  ProfileRoute: typeof ProfileRoute
   StockTickerRoute: typeof StockTickerRoute
+  TraderNameRoute: typeof TraderNameRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -135,11 +171,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PortfolioRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/stock/$ticker': {
       id: '/stock/$ticker'
       path: '/stock/$ticker'
       fullPath: '/stock/$ticker'
       preLoaderRoute: typeof StockTickerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/trader/$name': {
+      id: '/trader/$name'
+      path: '/trader/$name'
+      fullPath: '/trader/$name'
+      preLoaderRoute: typeof TraderNameRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -151,7 +201,9 @@ const rootRouteChildren: RootRouteChildren = {
   MarketRoute: MarketRoute,
   NewsRoute: NewsRoute,
   PortfolioRoute: PortfolioRoute,
+  ProfileRoute: ProfileRoute,
   StockTickerRoute: StockTickerRoute,
+  TraderNameRoute: TraderNameRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -18,7 +18,16 @@ interface Ctx {
   toggleWatch: (t: string) => void;
   portfolioValue: number;
   reset: () => void;
+  admin: AdminSettings;
+  setAdmin: (a: Partial<AdminSettings>) => void;
+  setCash: (v: number) => void;
+  setPrice: (ticker: string, price: number) => void;
+  pushNews: (ticker: string, impact: number) => void;
+  profile: Profile;
+  setProfile: (p: Partial<Profile>) => void;
 }
+export interface AdminSettings { speed: number; volatility: number; trend: number; paused: boolean; newsRate: number }
+export interface Profile { name: string; bio: string; joined: number }
 
 const MarketCtx = createContext<Ctx | null>(null);
 const KEY = "nexus-account-v1";
@@ -33,6 +42,10 @@ export function MarketProvider({ children }: { children: ReactNode }) {
   const [news, setNews] = useState<NewsItem[]>(() => seedNews(seedStocks()));
   const [players, setPlayers] = useState<Player[]>(() => seedPlayers());
   const [account, setAccount] = useState<Account>(freshAccount);
+  const [admin, setAdminState] = useState<AdminSettings>({ speed: 1, volatility: 1, trend: 0, paused: false, newsRate: 0.07 });
+  const [profile, setProfileState] = useState<Profile>({ name: "Vous", bio: "", joined: Date.now() });
+  const adminRef = useRef(admin);
+  adminRef.current = admin;
   const loaded = useRef(false);
   const stocksRef = useRef(stocks);
   stocksRef.current = stocks;
@@ -41,6 +54,8 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     try {
       const raw = localStorage.getItem(KEY);
       if (raw) setAccount(JSON.parse(raw));
+      const pr = localStorage.getItem(KEY + "-profile");
+      if (pr) setProfileState(JSON.parse(pr));
     } catch {}
     loaded.current = true;
   }, []);
@@ -48,11 +63,16 @@ export function MarketProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (loaded.current) localStorage.setItem(KEY, JSON.stringify(account));
   }, [account]);
+  useEffect(() => {
+    if (loaded.current) localStorage.setItem(KEY + "-profile", JSON.stringify(profile));
+  }, [profile]);
 
   useEffect(() => {
     let pending: NewsItem | null = null;
     const id = setInterval(() => {
-      if (Math.random() < 0.07) {
+      const ad = adminRef.current;
+      if (ad.paused) return;
+      if (Math.random() < ad.newsRate) {
         pending = makeNews(stocksRef.current);
         const n = pending;
         setNews((prev) => [n, ...prev].slice(0, 60));
@@ -60,7 +80,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
       const market = gauss() * 0.0015;
       setStocks((prev) =>
         prev.map((s) => {
-          let r = market + gauss() * s.vol * 0.25 + 0.00005;
+          let r = (market + gauss() * s.vol * 0.25) * ad.volatility + 0.00005 + ad.trend * 0.002;
           if (pending && pending.ticker === s.ticker) r += pending.impact;
           const price = Math.max(0.5, +(s.price * (1 + r)).toFixed(2));
           const history = [...s.history.slice(-(HISTORY_LEN - 1)), price];
@@ -69,9 +89,9 @@ export function MarketProvider({ children }: { children: ReactNode }) {
       );
       pending = null;
       setPlayers((prev) => prev.map((p) => ({ ...p, value: Math.max(10000, Math.round(p.value * (1 + gauss() * 0.004 + 0.0002))) })));
-    }, 1600);
+    }, 1600 / admin.speed);
     return () => clearInterval(id);
-  }, []);
+  }, [admin.speed]);
 
   const byTicker = (t: string) => stocks.find((s) => s.ticker === t);
 
@@ -106,10 +126,21 @@ export function MarketProvider({ children }: { children: ReactNode }) {
   const toggleWatch = (t: string) =>
     setAccount((a) => ({ ...a, watchlist: a.watchlist.includes(t) ? a.watchlist.filter((x) => x !== t) : [...a.watchlist, t] }));
 
+  const setPrice = (ticker: string, price: number) => {
+    if (!Number.isFinite(price) || price <= 0) return;
+    setStocks((prev) => prev.map((s) => (s.ticker === ticker ? { ...s, price, history: [...s.history.slice(1), price], dir: price > s.price ? 1 : -1 } : s)));
+  };
+  const pushNews = (ticker: string, impact: number) => {
+    const n = makeNews(stocksRef.current);
+    const s = stocks.find((x) => x.ticker === ticker);
+    const item = { ...n, ticker, impact, category: "Flash", title: `${s?.name ?? ticker} : ${impact >= 0 ? "annonce explosive, les acheteurs affluent" : "scandale, la confiance s'effondre"}` };
+    setNews((prev) => [item, ...prev].slice(0, 60));
+    if (s) setPrice(ticker, +(s.price * (1 + impact)).toFixed(2));
+  };
   const portfolioValue = account.cash + Object.entries(account.holdings).reduce((sum, [t, h]) => sum + (byTicker(t)?.price ?? 0) * h.qty, 0);
 
   return (
-    <MarketCtx.Provider value={{ stocks, news, players, account, byTicker, trade, toggleWatch, portfolioValue, reset: () => setAccount(freshAccount()) }}>
+    <MarketCtx.Provider value={{ stocks, news, players, account, byTicker, trade, toggleWatch, portfolioValue, reset: () => setAccount(freshAccount()), admin, setAdmin: (a) => setAdminState((p) => ({ ...p, ...a })), setCash: (v) => Number.isFinite(v) && v >= 0 && setAccount((a) => ({ ...a, cash: v })), setPrice, pushNews, profile, setProfile: (p) => setProfileState((x) => ({ ...x, ...p })) }}>
       {children}
     </MarketCtx.Provider>
   );

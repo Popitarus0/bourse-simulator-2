@@ -133,7 +133,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
   const pushNews = (ticker: string, impact: number) => {
     const n = makeNews(stocksRef.current);
     const s = stocks.find((x) => x.ticker === ticker);
-    const item = { ...n, ticker, impact, headline: `${s?.name ?? ticker} : ${impact >= 0 ? "annonce explosive, les acheteurs affluent" : "scandale, la confiance s'effondre"}` };
+    const item = { ...n, ticker, impact, category: "Flash", title: `${s?.name ?? ticker} : ${impact >= 0 ? "annonce explosive, les acheteurs affluent" : "scandale, la confiance s'effondre"}` };
     setNews((prev) => [item, ...prev].slice(0, 60));
     if (s) setPrice(ticker, +(s.price * (1 + impact)).toFixed(2));
   };

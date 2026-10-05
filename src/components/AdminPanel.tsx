@@ -3,10 +3,13 @@ import { Shield, X } from "lucide-react";
 import { useMarket } from "@/lib/store";
 import { fmt } from "@/lib/market";
 
+let lastPos = { x: 24, y: 120 };
+
 export function AdminPanel() {
   const m = useMarket();
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState({ x: 24, y: 120 });
+  const [pos, setPos] = useState(lastPos);
+  useEffect(() => { lastPos = pos; }, [pos]);
   const drag = useRef<{ dx: number; dy: number; moved: boolean } | null>(null);
   const [cash, setCash] = useState("");
   const [ticker, setTicker] = useState(m.stocks[0]?.ticker ?? "");

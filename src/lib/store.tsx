@@ -114,7 +114,10 @@ export function MarketProvider({ children }: { children: ReactNode }) {
   const [players, setPlayers] = useState<Player[]>(() => seedPlayers());
   const [account, setAccount] = useState<Account>(freshAccount);
   const [admin, setAdminState] = useState<AdminSettings>({ speed: 1, volatility: 1, trend: 0, paused: false, newsRate: 0.07 });
-  const [profile, setProfileState] = useState<Profile>({ name: "Vous", bio: "", joined: Date.now() });
+  const [profile, setProfileState] = useState<Profile>({
+    name: "Vous", bio: "", joined: Date.now(), title: "Market Explorer",
+    avatarStyle: "orb", accent: "blue", banner: "aurora", status: "Actif",
+  });
   const adminRef = useRef(admin);
   adminRef.current = admin;
   const loaded = useRef(false);
@@ -225,7 +228,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
         status: ["Actif","En observation","En pause"].includes(data.status) ? data.status as ProfileStatus : "Actif",
       });
     });
-  }, [uid]);
+  }, [uid, profileStorageKey]);
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const setProfile = (p: Partial<Profile>) => {

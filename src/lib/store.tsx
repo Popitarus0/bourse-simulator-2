@@ -32,8 +32,23 @@ export interface AdminSettings { speed: number; volatility: number; trend: numbe
 export interface Profile { name: string; bio: string; joined: number }
 
 const MarketCtx = createContext<Ctx | null>(null);
-const KEY = "nexus-account-v1";
+const ACCOUNT_PREFIX = "nexus-account-v1:";
 const freshAccount = (): Account => ({ cash: START_CASH, holdings: {}, txs: [], watchlist: ["NXQ", "ORBT", "FUSN"] });
+function parseAccount(raw: string | null): Account | null {
+  if (!raw) return null;
+  try {
+    const value = JSON.parse(raw) as Partial<Account>;
+    if (typeof value.cash !== "number" || !Number.isFinite(value.cash) || value.cash < 0 ||
+        typeof value.holdings !== "object" || !value.holdings ||
+        !Array.isArray(value.txs) || !Array.isArray(value.watchlist)) return null;
+    return {
+      cash: value.cash,
+      holdings: value.holdings as Record<string, Holding>,
+      txs: value.txs as Tx[],
+      watchlist: value.watchlist.filter((x): x is string => typeof x === "string").slice(0, 50),
+    };
+  } catch { return null; }
+}
 
 function gauss() {
   return Math.sqrt(-2 * Math.log(Math.random() || 1e-9)) * Math.cos(2 * Math.PI * Math.random());
@@ -54,18 +69,17 @@ export function MarketProvider({ children }: { children: ReactNode }) {
 
   const { session, isAdmin } = useAuth();
   const uid = session?.user.id;
+  const storageKey = ACCOUNT_PREFIX + (uid ?? "guest");
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(KEY);
-      if (raw) setAccount(JSON.parse(raw));
-    } catch {}
+    loaded.current = false;
+    setAccount(parseAccount(localStorage.getItem(storageKey)) ?? freshAccount());
     loaded.current = true;
-  }, []);
+  }, [storageKey]);
 
   useEffect(() => {
-    if (loaded.current) localStorage.setItem(KEY, JSON.stringify(account));
-  }, [account]);
+    if (loaded.current) localStorage.setItem(storageKey, JSON.stringify(account));
+  }, [account, storageKey]);
 
   // Global market settings: load + live updates
   useEffect(() => {
@@ -89,10 +103,14 @@ export function MarketProvider({ children }: { children: ReactNode }) {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const setProfile = (p: Partial<Profile>) => {
     setProfileState((x) => {
-      const next = { ...x, ...p };
+      const next = {
+        ...x,
+        ...(p.name !== undefined ? { name: p.name.trim().slice(0, 32) } : {}),
+        ...(p.bio !== undefined ? { bio: p.bio.trim().slice(0, 160) } : {}),
+      };
       if (uid) {
         if (saveTimer.current) clearTimeout(saveTimer.current);
-        saveTimer.current = setTimeout(() => { supabase.from("profiles").update({ name: next.name, bio: next.bio }).eq("id", uid).then(() => {}); }, 500);
+        saveTimer.current = setTimeout(() => { supabase.from("profiles").update({ name: next.name || "Trader", bio: next.bio }).eq("id", uid).then(() => {}); }, 500);
       }
       return next;
     });
@@ -137,7 +155,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
 
   const trade: Ctx["trade"] = (ticker, side, qty) => {
     const s = byTicker(ticker);
-    if (!s || !Number.isFinite(qty) || qty <= 0) return "Quantité invalide";
+    if (!s || !Number.isFinite(qty) || !Number.isInteger(qty) || qty <= 0 || qty > 1000000) return "Quantité invalide";
     const total = s.price * qty;
     const h = account.holdings[ticker];
     if (side === "buy" && total > account.cash) return "Liquidités insuffisantes";
@@ -157,7 +175,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
         ...a,
         cash: a.cash + (side === "buy" ? -total : total),
         holdings,
-        txs: [{ id: crypto.randomUUID(), ticker, side, qty, price: s.price, time: Date.now() }, ...a.txs],
+        txs: [{ id: crypto.randomUUID(), ticker, side, qty, price: s.price, time: Date.now() }, ...a.txs].slice(0, 1000),
       };
     });
     return null;

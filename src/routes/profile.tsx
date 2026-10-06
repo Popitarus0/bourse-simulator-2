@@ -19,12 +19,18 @@ export const Route = createFileRoute("/profile")({
 
 function Profile() {
   const { profile, setProfile, account, portfolioValue, players, byTicker } = useMarket();
-  const all = [...players, { name: "Vous", value: portfolioValue }].sort((a, b) => b.value - a.value);
+  const profileName = typeof profile.name === "string" ? profile.name : "Vous";
+  const profileBio = typeof profile.bio === "string" ? profile.bio : "";
+  const joinedAt = Number.isFinite(profile.joined) ? profile.joined : Date.now();
+  const safePlayers = Array.isArray(players) ? players : [];
+  const safeHoldings = account && account.holdings && typeof account.holdings === "object" ? account.holdings : {};
+  const safeTxs = Array.isArray(account?.txs) ? account.txs : [];
+  const all = [...safePlayers, { name: "Vous", value: portfolioValue }].sort((a, b) => b.value - a.value);
   const rank = all.findIndex((p) => p.name === "Vous") + 1;
   const performance = (portfolioValue - START_CASH) / START_CASH;
-  const buys = account.txs.filter((t) => t.side === "buy").length;
+  const buys = safeTxs.filter((t) => t.side === "buy").length;
   const sells = account.txs.filter((t) => t.side === "sell").length;
-  const initials = (profile.name || "TR").trim().slice(0, 2).toUpperCase();
+  const initials = profileName.trim().slice(0, 2).toUpperCase();
   const rankProgress = all.length ? Math.max(0, Math.min(100, ((all.length - rank + 1) / all.length) * 100)) : 0;
 
   return (
@@ -40,15 +46,15 @@ function Profile() {
                   <span className="rounded-full bg-up/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-up">Trader actif</span>
                   <ShieldCheck className="h-4 w-4 text-up" aria-label="Compte protégé" />
                 </div>
-                <h1 className="text-2xl font-semibold tracking-tight">{profile.name || "Trader"}</h1>
-                <p className="mt-1 text-sm text-muted-foreground">{profile.bio || "Aucune bio renseignée."}</p>
+                <h1 className="text-2xl font-semibold tracking-tight">{profileName || "Trader"}</h1>
+                <p className="mt-1 text-sm text-muted-foreground">{profileBio || "Aucune bio renseignée."}</p>
               </div>
             </div>
             <div className="ml-auto grid grid-cols-2 gap-2 sm:grid-cols-4">
               <MiniMetric label="Patrimoine" value={fmt(portfolioValue) + " NX$"} />
               <MiniMetric label="Performance" value={<Delta v={performance} />} />
               <MiniMetric label="Rang" value={"#" + rank} />
-              <MiniMetric label="Positions" value={Object.keys(account.holdings).length} />
+              <MiniMetric label="Positions" value={Object.keys(safeHoldings).length} />
             </div>
           </div>
         </div>
@@ -61,16 +67,16 @@ function Profile() {
             <div>
               <div className="mb-1.5 flex items-center justify-between">
                 <label htmlFor="profile-name" className="text-xs font-medium text-muted-foreground">Pseudo</label>
-                <span className="text-[10px] text-muted-foreground">{profile.name.length}/32</span>
+                <span className="text-[10px] text-muted-foreground">{profileName.length}/32</span>
               </div>
-              <input id="profile-name" value={profile.name} maxLength={32} onChange={(e) => setProfile({ name: e.target.value })} className="glass-input w-full text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15" />
+              <input id="profile-name" value={profileName} maxLength={32} onChange={(e) => setProfile({ name: e.target.value })} className="glass-input w-full text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15" />
             </div>
             <div>
               <div className="mb-1.5 flex items-center justify-between">
                 <label htmlFor="profile-bio" className="text-xs font-medium text-muted-foreground">Bio</label>
-                <span className="text-[10px] text-muted-foreground">{profile.bio.length}/160</span>
+                <span className="text-[10px] text-muted-foreground">{profileBio.length}/160</span>
               </div>
-              <textarea id="profile-bio" value={profile.bio} maxLength={160} rows={4} onChange={(e) => setProfile({ bio: e.target.value })} placeholder="Décris ta stratégie, ton style ou ton objectif…" className="glass-input w-full resize-none text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15" />
+              <textarea id="profile-bio" value={profileBio} maxLength={160} rows={4} onChange={(e) => setProfile({ bio: e.target.value })} placeholder="Décris ta stratégie, ton style ou ton objectif…" className="glass-input w-full resize-none text-sm outline-none transition focus:border-primary/60 focus:ring-2 focus:ring-primary/15" />
             </div>
           </div>
           <div className="mt-4 flex items-center gap-2 rounded-lg border border-up/15 bg-up/5 px-3 py-2 text-xs text-muted-foreground">
@@ -93,7 +99,7 @@ function Profile() {
         <Stat icon={<WalletCards />} label="Liquidités" value={fmt(account.cash) + " NX$"} />
         <Stat icon={<TrendingUp />} label="Achats" value={buys} />
         <Stat icon={<TrendingDown />} label="Ventes" value={sells} />
-        <Stat icon={<CalendarDays />} label="Compte créé" value={new Date(profile.joined).toLocaleDateString("fr-FR")} />
+        <Stat icon={<CalendarDays />} label="Compte créé" value={new Date(joinedAt).toLocaleDateString("fr-FR")} />
       </div>
 
       <section className="panel mt-4 overflow-hidden">
@@ -101,9 +107,9 @@ function Profile() {
           <div><h2 className="font-semibold">Positions</h2><p className="mt-0.5 text-xs text-muted-foreground">Répartition actuelle du portefeuille</p></div>
           <Link to="/portfolio" className="text-xs text-primary hover:underline">Voir le portefeuille →</Link>
         </div>
-        {Object.entries(account.holdings).length ? (
+        {Object.entries(safeHoldings).length ? (
           <div className="divide-y">
-            {Object.entries(account.holdings).map(([ticker, holding]) => {
+            {Object.entries(safeHoldings).map(([ticker, holding]) => {
               const stock = byTicker(ticker);
               const price = stock?.price ?? 0;
               const value = price * holding.qty;

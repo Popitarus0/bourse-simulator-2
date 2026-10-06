@@ -36,7 +36,14 @@ function readSupabaseConfig() {
 
 export function isSupabaseConfigured(): boolean {
   const { url, key } = readSupabaseConfig();
-  return typeof url === 'string' && url.length > 0 && typeof key === 'string' && key.length > 0;
+  if (typeof url !== 'string' || typeof key !== 'string' || !url || !key) return false;
+  try {
+    const parsed = new URL(url);
+    if (!["https:", "http:"].includes(parsed.protocol)) return false;
+  } catch {
+    return false;
+  }
+  return key.length >= 20;
 }
 
 export function getSupabaseConfigError(): string | null {

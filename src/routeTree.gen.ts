@@ -10,17 +10,24 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as MarketRouteImport } from './routes/market'
 import { Route as NewsRouteImport } from './routes/news'
 import { Route as PortfolioRouteImport } from './routes/portfolio'
 import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as ApiAdvisorRouteImport } from './routes/api/advisor'
 import { Route as StockTickerRouteImport } from './routes/stock.$ticker'
 import { Route as TraderNameRouteImport } from './routes/trader.$name'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LeaderboardRoute = LeaderboardRouteImport.update({
@@ -48,6 +55,11 @@ const ProfileRoute = ProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdvisorRoute = ApiAdvisorRouteImport.update({
+  id: '/api/advisor',
+  path: '/api/advisor',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StockTickerRoute = StockTickerRouteImport.update({
   id: '/stock/$ticker',
   path: '/stock/$ticker',
@@ -61,32 +73,38 @@ const TraderNameRoute = TraderNameRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/leaderboard': typeof LeaderboardRoute
   '/market': typeof MarketRoute
   '/news': typeof NewsRoute
   '/portfolio': typeof PortfolioRoute
   '/profile': typeof ProfileRoute
+  '/api/advisor': typeof ApiAdvisorRoute
   '/stock/$ticker': typeof StockTickerRoute
   '/trader/$name': typeof TraderNameRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/leaderboard': typeof LeaderboardRoute
   '/market': typeof MarketRoute
   '/news': typeof NewsRoute
   '/portfolio': typeof PortfolioRoute
   '/profile': typeof ProfileRoute
+  '/api/advisor': typeof ApiAdvisorRoute
   '/stock/$ticker': typeof StockTickerRoute
   '/trader/$name': typeof TraderNameRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/leaderboard': typeof LeaderboardRoute
   '/market': typeof MarketRoute
   '/news': typeof NewsRoute
   '/portfolio': typeof PortfolioRoute
   '/profile': typeof ProfileRoute
+  '/api/advisor': typeof ApiAdvisorRoute
   '/stock/$ticker': typeof StockTickerRoute
   '/trader/$name': typeof TraderNameRoute
 }
@@ -94,42 +112,50 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/auth'
     | '/leaderboard'
     | '/market'
     | '/news'
     | '/portfolio'
     | '/profile'
+    | '/api/advisor'
     | '/stock/$ticker'
     | '/trader/$name'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/auth'
     | '/leaderboard'
     | '/market'
     | '/news'
     | '/portfolio'
     | '/profile'
+    | '/api/advisor'
     | '/stock/$ticker'
     | '/trader/$name'
   id:
     | '__root__'
     | '/'
+    | '/auth'
     | '/leaderboard'
     | '/market'
     | '/news'
     | '/portfolio'
     | '/profile'
+    | '/api/advisor'
     | '/stock/$ticker'
     | '/trader/$name'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthRoute: typeof AuthRoute
   LeaderboardRoute: typeof LeaderboardRoute
   MarketRoute: typeof MarketRoute
   NewsRoute: typeof NewsRoute
   PortfolioRoute: typeof PortfolioRoute
   ProfileRoute: typeof ProfileRoute
+  ApiAdvisorRoute: typeof ApiAdvisorRoute
   StockTickerRoute: typeof StockTickerRoute
   TraderNameRoute: typeof TraderNameRoute
 }
@@ -141,6 +167,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/leaderboard': {
@@ -178,6 +211,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProfileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/advisor': {
+      id: '/api/advisor'
+      path: '/api/advisor'
+      fullPath: '/api/advisor'
+      preLoaderRoute: typeof ApiAdvisorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/stock/$ticker': {
       id: '/stock/$ticker'
       path: '/stock/$ticker'
@@ -197,11 +237,13 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthRoute: AuthRoute,
   LeaderboardRoute: LeaderboardRoute,
   MarketRoute: MarketRoute,
   NewsRoute: NewsRoute,
   PortfolioRoute: PortfolioRoute,
   ProfileRoute: ProfileRoute,
+  ApiAdvisorRoute: ApiAdvisorRoute,
   StockTickerRoute: StockTickerRoute,
   TraderNameRoute: TraderNameRoute,
 }

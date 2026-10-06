@@ -200,10 +200,17 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     if (!isSupabaseConfigured()) return;
     const apply = (r: { speed: number; volatility: number; trend: number; news_rate: number; paused: boolean }) =>
       setAdminState({ speed: +r.speed, volatility: +r.volatility, trend: +r.trend, newsRate: +r.news_rate, paused: r.paused });
-    supabase.from("market_settings").select("*").eq("id", 1).maybeSingle().then(({ data }) => data && apply(data));
+    supabase.from("market_settings").select("*").eq("id", 1).maybeSingle().then(({ data, error }) => {
+      if (data) apply(data);
+      if (error) console.warn("[Market] Settings unavailable, using local defaults:", error.message);
+    });
     const ch = supabase.channel("market_settings")
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "market_settings" }, (p) => apply(p.new as never))
-      .subscribe();
+      .subscribe((status) => {
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+          console.warn("[Market] Live settings channel unavailable:", status);
+        }
+      });
     return () => { supabase.removeChannel(ch); };
   }, []);
 
@@ -216,18 +223,47 @@ export function MarketProvider({ children }: { children: ReactNode }) {
       });
       return;
     }
-    supabase.from("profiles").select("name,bio,created_at,title,avatar_style,accent,banner,status").eq("id", uid).maybeSingle().then(({ data }) => {
-      if (data) setProfileState({
-        name: typeof data.name === "string" ? data.name : "Trader",
-        bio: typeof data.bio === "string" ? data.bio : "",
-        joined: Number.isFinite(new Date(data.created_at).getTime()) ? new Date(data.created_at).getTime() : Date.now(),
-        title: typeof data.title === "string" ? data.title : "Market Explorer",
-        avatarStyle: ["orb","grid","mono","rings"].includes(data.avatar_style) ? data.avatar_style as ProfileAvatar : "orb",
-        accent: ["blue","violet","cyan","green","gold"].includes(data.accent) ? data.accent as ProfileAccent : "blue",
-        banner: ["aurora","midnight","sunset","ice"].includes(data.banner) ? data.banner as ProfileBanner : "aurora",
-        status: ["Actif","En observation","En pause"].includes(data.status) ? data.status as ProfileStatus : "Actif",
+    const applyProfile = (data: {
+      name?: string | null;
+      bio?: string | null;
+      created_at?: string | null;
+      title?: string | null;
+      avatar_style?: string | null;
+      accent?: string | null;
+      banner?: string | null;
+      status?: string | null;
+    }) => {
+      const local = parseProfile(localStorage.getItem(profileStorageKey));
+      setProfileState({
+        name: typeof data.name === "string" ? data.name : local?.name ?? "Trader",
+        bio: typeof data.bio === "string" ? data.bio : local?.bio ?? "",
+        joined: data.created_at && Number.isFinite(new Date(data.created_at).getTime())
+          ? new Date(data.created_at).getTime()
+          : local?.joined ?? Date.now(),
+        title: typeof data.title === "string" ? data.title : local?.title ?? "Market Explorer",
+        avatarStyle: ["orb","grid","mono","rings"].includes(data.avatar_style ?? "") ? data.avatar_style as ProfileAvatar : local?.avatarStyle ?? "orb",
+        accent: ["blue","violet","cyan","green","gold"].includes(data.accent ?? "") ? data.accent as ProfileAccent : local?.accent ?? "blue",
+        banner: ["aurora","midnight","sunset","ice"].includes(data.banner ?? "") ? data.banner as ProfileBanner : local?.banner ?? "aurora",
+        status: ["Actif","En observation","En pause"].includes(data.status ?? "") ? data.status as ProfileStatus : local?.status ?? "Actif",
       });
-    });
+    };
+
+    supabase.from("profiles")
+      .select("name,bio,created_at,title,avatar_style,accent,banner,status")
+      .eq("id", uid)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (!error && data) {
+          applyProfile(data);
+          return;
+        }
+
+        // Keep the app usable if the profile personalization migration has
+        // not reached the connected Supabase project yet.
+        if (error) console.warn("[Profile] Full profile load failed, using fallback:", error.message);
+        const fallback = parseProfile(localStorage.getItem(profileStorageKey));
+        if (fallback) setProfileState(fallback);
+      });
   }, [uid, profileStorageKey]);
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -256,9 +292,9 @@ export function MarketProvider({ children }: { children: ReactNode }) {
             status: next.status,
           }).eq("id", uid).then(({ error }) => error && console.error("[Profile] Save failed:", error));
         }, 350);
-      } else if (!uid) {
-        localStorage.setItem(profileStorageKey, JSON.stringify(next));
       }
+
+      localStorage.setItem(profileStorageKey, JSON.stringify(next));
       return next;
     });
   };
@@ -305,11 +341,23 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     if (!s || !Number.isFinite(qty) || !Number.isInteger(qty) || qty <= 0 || qty > 1000000) return "Quantité invalide";
 
     if (uid && isSupabaseConfigured()) {
-      const { error } = await supabase.rpc("execute_paper_trade", {
+      const { data: quote, error: quoteError } = await supabase
+        .from("paper_quotes")
+        .select("price")
+        .eq("ticker", ticker)
+        .maybeSingle();
+
+      if (quoteError) {
+        console.warn("[Trade] Quote lookup failed, server will remain authoritative:", quoteError.message);
+      } else if (quote && Number.isFinite(Number(quote.price)) && Number(quote.price) > 0) {
+        setPrice(ticker, Number(quote.price));
+      }
+
+      const { data: tradeResult, error } = await supabase.rpc("execute_paper_trade", {
         p_ticker: ticker,
         p_side: side,
         p_qty: qty,
-        p_client_price: s.price,
+        p_client_price: quote && Number.isFinite(Number(quote.price)) ? Number(quote.price) : s.price,
       });
       if (error) {
         const messages: Record<string, string> = {
@@ -319,6 +367,15 @@ export function MarketProvider({ children }: { children: ReactNode }) {
           UNKNOWN_TICKER: "Action inconnue",
         };
         return messages[error.message] ?? "Ordre refusé par le serveur";
+      }
+
+      const executedPrice = Number(
+        tradeResult && typeof tradeResult === "object" && "price" in tradeResult
+          ? (tradeResult as { price?: unknown }).price
+          : NaN,
+      );
+      if (Number.isFinite(executedPrice) && executedPrice > 0) {
+        setPrice(ticker, executedPrice);
       }
 
       const [accountResult, holdingsResult, txResult] = await Promise.all([

@@ -29,7 +29,7 @@ function Profile() {
   const rank = all.findIndex((p) => p.name === "Vous") + 1;
   const performance = (portfolioValue - START_CASH) / START_CASH;
   const buys = safeTxs.filter((t) => t.side === "buy").length;
-  const sells = account.txs.filter((t) => t.side === "sell").length;
+  const sells = safeTxs.filter((t) => t.side === "sell").length;
   const initials = profileName.trim().slice(0, 2).toUpperCase();
   const rankProgress = all.length ? Math.max(0, Math.min(100, ((all.length - rank + 1) / all.length) * 100)) : 0;
 

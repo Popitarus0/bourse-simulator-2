@@ -110,12 +110,22 @@ function OrderTicket({ ticker }: { ticker: string }) {
   const [side, setSide] = useState<"buy" | "sell">("buy");
   const [qty, setQty] = useState(10);
   const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
+  const [busy, setBusy] = useState(false);
   const total = qty * s.price;
   const max = side === "buy" ? Math.floor(account.cash / s.price) : account.holdings[ticker]?.qty ?? 0;
 
-  const submit = () => {
-    const err = trade(ticker, side, qty);
-    setMsg(err ? { ok: false, t: err } : { ok: true, t: `Ordre exécuté : ${side === "buy" ? "achat" : "vente"} de ${qty} ${ticker} à ${fmt(s.price)}` });
+  const submit = async () => {
+    if (busy) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      const err = await trade(ticker, side, qty);
+      setMsg(err
+        ? { ok: false, t: err }
+        : { ok: true, t: `Ordre exécuté : ${side === "buy" ? "achat" : "vente"} de ${qty} ${ticker}. Le prix d'exécution est validé par le serveur.` });
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -134,8 +144,8 @@ function OrderTicket({ ticker }: { ticker: string }) {
         <Row k="Total estimé" v={`${fmt(total)} NX$`} />
         <Row k="Disponible" v={side === "buy" ? fmt(account.cash) : `${max} titres`} />
       </div>
-      <button onClick={submit} disabled={qty <= 0} className={`mt-4 w-full rounded-md py-2.5 text-sm font-semibold text-background transition hover:opacity-90 disabled:opacity-40 ${side === "buy" ? "bg-up" : "bg-down"}`}>
-        {side === "buy" ? "Acheter" : "Vendre"} {qty} {ticker}
+      <button onClick={submit} disabled={qty <= 0 || busy} className={`mt-4 w-full rounded-md py-2.5 text-sm font-semibold text-background transition hover:opacity-90 disabled:opacity-40 ${side === "buy" ? "bg-up" : "bg-down"}`}>
+        {busy ? "Exécution…" : `${side === "buy" ? "Acheter" : "Vendre"} ${qty} ${ticker}`}
       </button>
       {msg && <p className={`mt-3 text-xs ${msg.ok ? "text-up" : "text-down"}`}>{msg.t}</p>}
     </div>

@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { HISTORY_LEN, makeNews, seedNews, seedPlayers, seedStocks, type NewsItem, type Player, type Stock } from "./market";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./auth";
 
 export const START_CASH = 100000;
 
@@ -50,12 +52,13 @@ export function MarketProvider({ children }: { children: ReactNode }) {
   const stocksRef = useRef(stocks);
   stocksRef.current = stocks;
 
+  const { session, isAdmin } = useAuth();
+  const uid = session?.user.id;
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem(KEY);
       if (raw) setAccount(JSON.parse(raw));
-      const pr = localStorage.getItem(KEY + "-profile");
-      if (pr) setProfileState(JSON.parse(pr));
     } catch {}
     loaded.current = true;
   }, []);
@@ -63,9 +66,46 @@ export function MarketProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (loaded.current) localStorage.setItem(KEY, JSON.stringify(account));
   }, [account]);
+
+  // Global market settings: load + live updates
   useEffect(() => {
-    if (loaded.current) localStorage.setItem(KEY + "-profile", JSON.stringify(profile));
-  }, [profile]);
+    const apply = (r: { speed: number; volatility: number; trend: number; news_rate: number; paused: boolean }) =>
+      setAdminState({ speed: +r.speed, volatility: +r.volatility, trend: +r.trend, newsRate: +r.news_rate, paused: r.paused });
+    supabase.from("market_settings").select("*").eq("id", 1).maybeSingle().then(({ data }) => data && apply(data));
+    const ch = supabase.channel("market_settings")
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "market_settings" }, (p) => apply(p.new as never))
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
+
+  // Account-linked profile
+  useEffect(() => {
+    if (!uid) { setProfileState({ name: "Vous", bio: "", joined: Date.now() }); return; }
+    supabase.from("profiles").select("name,bio,created_at").eq("id", uid).maybeSingle().then(({ data }) => {
+      if (data) setProfileState({ name: data.name, bio: data.bio, joined: new Date(data.created_at).getTime() });
+    });
+  }, [uid]);
+
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const setProfile = (p: Partial<Profile>) => {
+    setProfileState((x) => {
+      const next = { ...x, ...p };
+      if (uid) {
+        if (saveTimer.current) clearTimeout(saveTimer.current);
+        saveTimer.current = setTimeout(() => { supabase.from("profiles").update({ name: next.name, bio: next.bio }).eq("id", uid).then(() => {}); }, 500);
+      }
+      return next;
+    });
+  };
+
+  const setAdmin = (a: Partial<AdminSettings>) => {
+    if (!isAdmin) return;
+    setAdminState((prev) => {
+      const n = { ...prev, ...a };
+      supabase.from("market_settings").update({ speed: n.speed, volatility: n.volatility, trend: n.trend, news_rate: n.newsRate, paused: n.paused, updated_at: new Date().toISOString() }).eq("id", 1).then(() => {});
+      return n;
+    });
+  };
 
   useEffect(() => {
     let pending: NewsItem | null = null;
@@ -140,7 +180,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
   const portfolioValue = account.cash + Object.entries(account.holdings).reduce((sum, [t, h]) => sum + (byTicker(t)?.price ?? 0) * h.qty, 0);
 
   return (
-    <MarketCtx.Provider value={{ stocks, news, players, account, byTicker, trade, toggleWatch, portfolioValue, reset: () => setAccount(freshAccount()), admin, setAdmin: (a) => setAdminState((p) => ({ ...p, ...a })), setCash: (v) => Number.isFinite(v) && v >= 0 && setAccount((a) => ({ ...a, cash: v })), setPrice, pushNews, profile, setProfile: (p) => setProfileState((x) => ({ ...x, ...p })) }}>
+    <MarketCtx.Provider value={{ stocks, news, players, account, byTicker, trade, toggleWatch, portfolioValue, reset: () => setAccount(freshAccount()), admin, setAdmin, setCash: (v) => isAdmin && Number.isFinite(v) && v >= 0 && setAccount((a) => ({ ...a, cash: v })), setPrice: (t, p) => isAdmin && setPrice(t, p), pushNews: (t, i) => isAdmin && pushNews(t, i), profile, setProfile }}>
       {children}
     </MarketCtx.Provider>
   );

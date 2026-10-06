@@ -1,11 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { Shield, X } from "lucide-react";
 import { useMarket } from "@/lib/store";
+import { useAuth } from "@/lib/auth";
 import { fmt } from "@/lib/market";
 
 let lastPos = { x: 24, y: 120 };
 
 export function AdminPanel() {
+  const { isAdmin } = useAuth();
+  return isAdmin ? <AdminPanelInner /> : null;
+}
+
+function AdminPanelInner() {
   const m = useMarket();
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState(lastPos);

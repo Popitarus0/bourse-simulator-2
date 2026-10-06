@@ -13,6 +13,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { MarketProvider } from "@/lib/store";
+import { AuthProvider } from "@/lib/auth";
 
 function NotFoundComponent() {
   return (
@@ -81,9 +82,11 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   return (
     <QueryClientProvider client={queryClient}>
-      <MarketProvider>
-        <Outlet />
-      </MarketProvider>
+      <AuthProvider>
+        <MarketProvider>
+          <Outlet />
+        </MarketProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }

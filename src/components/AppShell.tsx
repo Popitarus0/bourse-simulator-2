@@ -1,16 +1,27 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { Activity, User, Briefcase, LayoutGrid, Newspaper, Trophy } from "lucide-react";
+import { Activity, User, Briefcase, LayoutGrid, Newspaper, Trophy, Sparkles, LogIn, LogOut } from "lucide-react";
 import { AdminPanel } from "./AdminPanel";
 import { useMarket } from "@/lib/store";
+import { useAuth } from "@/lib/auth";
 import { change, fmt, fmtPct } from "@/lib/market";
 
 const NAV = [
   { to: "/market", label: "Marché", icon: LayoutGrid },
   { to: "/portfolio", label: "Portefeuille", icon: Briefcase },
+  { to: "/advisor", label: "Analyste IA", icon: Sparkles },
   { to: "/news", label: "Actualités", icon: Newspaper },
   { to: "/leaderboard", label: "Classement", icon: Trophy },
 ] as const;
+
+function AuthButton() {
+  const { session, signOut } = useAuth();
+  return session ? (
+    <button onClick={signOut} aria-label="Se déconnecter" title="Se déconnecter" className="order-last flex h-8 w-8 items-center justify-center rounded-full bg-accent hover:bg-primary/20"><LogOut className="h-4 w-4" /></button>
+  ) : (
+    <Link to="/auth" className="order-last flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-primary-foreground"><LogIn className="h-4 w-4" />Connexion</Link>
+  );
+}
 
 export function TickerTape() {
   const { stocks } = useMarket();

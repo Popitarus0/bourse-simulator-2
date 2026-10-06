@@ -2,7 +2,6 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, Sparkles } from "lucide-react";
 import { getSupabaseConfigError, isSupabaseConfigured, supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
 import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/auth")({
@@ -100,32 +99,42 @@ function AuthPage() {
       setMsg({ ok: false, text: getSupabaseConfigError() ?? "Connexion indisponible." });
       return;
     }
+
     setBusy(true);
     setMsg(null);
+
     try {
-      const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin + "/auth" });
-      if (result.error) {
-        const fallback = await supabase.auth.signInWithOAuth({
-          provider: "google",
-          options: { redirectTo: window.location.origin + "/auth" },
-        });
-        if (fallback.error) setMsg({ ok: false, text: fallback.error.message });
+      const redirectTo = new URL("/auth", window.location.origin).toString();
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo,
+          queryParams: {
+            prompt: "select_account",
+          },
+        },
+      });
+
+      if (error) {
+        setMsg({ ok: false, text: error.message });
+        setBusy(false);
+        return;
+      }
+
+      // signInWithOAuth redirects automatically in the browser.
+      // Keep a manual fallback for environments where it returns the URL
+      // without navigating.
+      if (data?.url && window.location.href === redirectTo) {
+        window.location.assign(data.url);
       }
     } catch (error) {
-      try {
-        const fallback = await supabase.auth.signInWithOAuth({
-          provider: "google",
-          options: { redirectTo: window.location.origin + "/auth" },
-        });
-        if (fallback.error) setMsg({ ok: false, text: fallback.error.message });
-      } catch (fallbackError) {
-        setMsg({ ok: false, text: fallbackError instanceof Error ? fallbackError.message : "Connexion Google impossible." });
-      }
-    } finally {
       setBusy(false);
+      setMsg({
+        ok: false,
+        text: error instanceof Error ? error.message : "Connexion Google impossible.",
+      });
     }
   };
-
   const title = mode === "up" ? "Créer ton compte" : mode === "forgot" ? "Récupérer ton compte" : mode === "reset" ? "Nouveau mot de passe" : "Ravi de te revoir";
   const subtitle = mode === "up"
     ? "Crée ton identité de trader et conserve ton portefeuille."

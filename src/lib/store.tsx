@@ -41,10 +41,28 @@ function parseAccount(raw: string | null): Account | null {
     if (typeof value.cash !== "number" || !Number.isFinite(value.cash) || value.cash < 0 ||
         typeof value.holdings !== "object" || !value.holdings ||
         !Array.isArray(value.txs) || !Array.isArray(value.watchlist)) return null;
+    const holdings: Record<string, Holding> = {};
+    for (const [ticker, raw] of Object.entries(value.holdings as Record<string, unknown>)) {
+      if (!raw || typeof raw !== "object") continue;
+      const h = raw as Partial<Holding>;
+      if (Number.isInteger(h.qty) && Number.isFinite(h.qty) && h.qty > 0 && Number.isFinite(h.avg) && h.avg >= 0) {
+        holdings[ticker] = { qty: h.qty, avg: h.avg };
+      }
+    }
+    const txs = value.txs.filter((tx): tx is Tx => {
+      if (!tx || typeof tx !== "object") return false;
+      const t = tx as Partial<Tx>;
+      return typeof t.id === "string" &&
+        typeof t.ticker === "string" &&
+        (t.side === "buy" || t.side === "sell") &&
+        Number.isInteger(t.qty) && t.qty > 0 &&
+        Number.isFinite(t.price) && t.price >= 0 &&
+        Number.isFinite(t.time);
+    }).slice(0, 1000);
     return {
       cash: value.cash,
-      holdings: value.holdings as Record<string, Holding>,
-      txs: value.txs as Tx[],
+      holdings,
+      txs,
       watchlist: value.watchlist.filter((x): x is string => typeof x === "string").slice(0, 50),
     };
   } catch { return null; }
@@ -96,7 +114,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!uid) { setProfileState({ name: "Vous", bio: "", joined: Date.now() }); return; }
     supabase.from("profiles").select("name,bio,created_at").eq("id", uid).maybeSingle().then(({ data }) => {
-      if (data) setProfileState({ name: data.name, bio: data.bio, joined: new Date(data.created_at).getTime() });
+      if (data) setProfileState({ name: typeof data.name === "string" ? data.name : "Trader", bio: typeof data.bio === "string" ? data.bio : "", joined: Number.isFinite(new Date(data.created_at).getTime()) ? new Date(data.created_at).getTime() : Date.now() });
     });
   }, [uid]);
 

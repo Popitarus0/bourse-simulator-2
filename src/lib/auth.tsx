@@ -32,7 +32,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      if (!nextSession) setIsAdmin(false);
+    });
     supabase.auth.getSession()
       .then(({ data }) => setSession(data.session))
       .catch((error) => console.error("[Auth] Session load failed:", error))

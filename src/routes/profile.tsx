@@ -131,6 +131,6 @@ function MiniMetric({ label, value }: { label: string; value: ReactNode }) {
   return <div className="rounded-xl border bg-background/45 px-3 py-2"><div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div><div className="num mt-1 text-sm font-medium">{value}</div></div>;
 }
 
-function Stat({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
+function Stat({ icon, label, value }: { icon: ReactNode; label: string; value: ReactNode }) {
   return <div className="panel p-4"><div className="flex items-center gap-2 text-muted-foreground">{icon}<span className="text-xs">{label}</span></div><div className="num mt-2 text-xl">{value}</div></div>;
 }

@@ -86,6 +86,32 @@ create policy "public paper quotes read"
 create index if not exists paper_holdings_user_id_idx on public.paper_holdings(user_id);
 create index if not exists paper_transactions_user_time_idx on public.paper_transactions(user_id, created_at desc);
 
+create schema if not exists private;
+
+create or replace function private.has_role(_user_id uuid, _role public.app_role)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $
+  select exists(
+    select 1 from public.user_roles
+    where user_id = _user_id and role = _role
+  )
+$;
+
+revoke all on function private.has_role(uuid, public.app_role) from public, anon;
+grant execute on function private.has_role(uuid, public.app_role) to authenticated;
+
+drop policy if exists "admin updates settings" on public.market_settings;
+create policy "admin updates settings"
+  on public.market_settings for update to authenticated
+  using (private.has_role((select auth.uid()), 'admin'::public.app_role))
+  with check (private.has_role((select auth.uid()), 'admin'::public.app_role));
+
+revoke all on function public.has_role(uuid, public.app_role) from public, anon, authenticated;
+
 create or replace function public.execute_paper_trade(
   p_ticker text,
   p_side text,
@@ -202,7 +228,7 @@ set search_path = ''
 as $$
 begin
   if (select auth.uid()) is null then raise exception 'AUTH_REQUIRED'; end if;
-  if not public.has_role((select auth.uid()), 'admin'::public.app_role) then raise exception 'ADMIN_REQUIRED'; end if;
+  if not private.has_role((select auth.uid()), 'admin'::public.app_role) then raise exception 'ADMIN_REQUIRED'; end if;
   if p_cash is null or p_cash < 0 or p_cash > 1000000000000 then raise exception 'INVALID_CASH'; end if;
   update public.paper_accounts set cash=p_cash, updated_at=now() where user_id=p_user_id;
   if not found then insert into public.paper_accounts(user_id,cash) values(p_user_id,p_cash); end if;
@@ -211,22 +237,6 @@ $$;
 
 revoke all on function public.admin_set_paper_cash(uuid,numeric) from public, anon;
 grant execute on function public.admin_set_paper_cash(uuid,numeric) to authenticated;
-
-create or replace function public.has_role(_user_id uuid, _role public.app_role)
-returns boolean
-language sql
-stable
-security definer
-set search_path = ''
-as $$
-  select exists(
-    select 1 from public.user_roles
-    where user_id = _user_id and role = _role
-  )
-$$;
-
-revoke all on function public.has_role(uuid, public.app_role) from public, anon;
-grant execute on function public.has_role(uuid, public.app_role) to authenticated;
 
 create or replace function public.handle_new_user()
 returns trigger

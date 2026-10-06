@@ -15,72 +15,45 @@ export type Database = {
   public: {
     Tables: {
       market_settings: {
-        Row: {
-          id: number
-          news_rate: number
-          paused: boolean
-          speed: number
-          trend: number
-          updated_at: string
-          volatility: number
-        }
-        Insert: {
-          id?: number
-          news_rate?: number
-          paused?: boolean
-          speed?: number
-          trend?: number
-          updated_at?: string
-          volatility?: number
-        }
-        Update: {
-          id?: number
-          news_rate?: number
-          paused?: boolean
-          speed?: number
-          trend?: number
-          updated_at?: string
-          volatility?: number
-        }
+        Row: { id: number; news_rate: number; paused: boolean; speed: number; trend: number; updated_at: string; volatility: number }
+        Insert: { id?: number; news_rate?: number; paused?: boolean; speed?: number; trend?: number; updated_at?: string; volatility?: number }
+        Update: { id?: number; news_rate?: number; paused?: boolean; speed?: number; trend?: number; updated_at?: string; volatility?: number }
         Relationships: []
       }
       profiles: {
-        Row: {
-          bio: string
-          created_at: string
-          id: string
-          name: string
-        }
-        Insert: {
-          bio?: string
-          created_at?: string
-          id: string
-          name?: string
-        }
-        Update: {
-          bio?: string
-          created_at?: string
-          id?: string
-          name?: string
-        }
+        Row: { bio: string; created_at: string; id: string; name: string }
+        Insert: { bio?: string; created_at?: string; id: string; name?: string }
+        Update: { bio?: string; created_at?: string; id?: string; name?: string }
         Relationships: []
       }
       user_roles: {
-        Row: {
-          id: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
-        Insert: {
-          id?: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
-        Update: {
-          id?: string
-          role?: Database["public"]["Enums"]["app_role"]
-          user_id?: string
-        }
+        Row: { id: string; role: Database["public"]["Enums"]["app_role"]; user_id: string }
+        Insert: { id?: string; role: Database["public"]["Enums"]["app_role"]; user_id: string }
+        Update: { id?: string; role?: Database["public"]["Enums"]["app_role"]; user_id?: string }
+        Relationships: []
+      }
+      paper_accounts: {
+        Row: { cash: number; created_at: string; updated_at: string; user_id: string }
+        Insert: { cash?: number; created_at?: string; updated_at?: string; user_id: string }
+        Update: { cash?: number; created_at?: string; updated_at?: string; user_id?: string }
+        Relationships: []
+      }
+      paper_holdings: {
+        Row: { avg_price: number; qty: number; ticker: string; updated_at: string; user_id: string }
+        Insert: { avg_price?: number; qty: number; ticker: string; updated_at?: string; user_id?: string }
+        Update: { avg_price?: number; qty?: number; ticker?: string; updated_at?: string; user_id?: string }
+        Relationships: []
+      }
+      paper_quotes: {
+        Row: { price: number; ticker: string; updated_at: string }
+        Insert: { price: number; ticker: string; updated_at?: string }
+        Update: { price?: number; ticker?: string; updated_at?: string }
+        Relationships: []
+      }
+      paper_transactions: {
+        Row: { created_at: string; id: string; price: number; qty: number; side: string; ticker: string; user_id: string }
+        Insert: { created_at?: string; id?: string; price: number; qty: number; side: string; ticker: string; user_id: string }
+        Update: { created_at?: string; id?: string; price?: number; qty?: number; side?: string; ticker?: string; user_id?: string }
         Relationships: []
       }
     }
@@ -88,15 +61,24 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_set_paper_cash: {
+        Args: { p_cash: number; p_user_id: string }
+        Returns: undefined
+      }
+      execute_paper_trade: {
+        Args: { p_client_price?: number; p_qty: number; p_side: string; p_ticker: string }
+        Returns: Json
+      }
       has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
+        Args: { _role: Database["public"]["Enums"]["app_role"]; _user_id: string }
         Returns: boolean
       }
+      reset_paper_account: {
+        Args: Record<string, never>
+        Returns: undefined
+      }
     }
-    Enums: {
+        Enums: {
       app_role: "admin" | "user"
     }
     CompositeTypes: {

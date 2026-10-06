@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import type { ReactNode } from "react";
 import { Activity, CalendarDays, ShieldCheck, TrendingDown, TrendingUp, UserRound, WalletCards } from "lucide-react";
 import { AppShell, Delta } from "@/components/AppShell";
 import { START_CASH, useMarket } from "@/lib/store";
@@ -122,11 +123,11 @@ function Profile() {
   );
 }
 
-function SectionTitle({ icon, title }: { icon: React.ReactNode; title: string }) {
+function SectionTitle({ icon, title }: { icon: ReactNode; title: string }) {
   return <div className="flex items-center gap-2 text-sm font-semibold">{icon}<span>{title}</span></div>;
 }
 
-function MiniMetric({ label, value }: { label: string; value: React.ReactNode }) {
+function MiniMetric({ label, value }: { label: string; value: ReactNode }) {
   return <div className="rounded-xl border bg-background/45 px-3 py-2"><div className="text-[10px] uppercase tracking-wider text-muted-foreground">{label}</div><div className="num mt-1 text-sm font-medium">{value}</div></div>;
 }
 

@@ -29,11 +29,47 @@ interface Ctx {
   setProfile: (p: Partial<Profile>) => void;
 }
 export interface AdminSettings { speed: number; volatility: number; trend: number; paused: boolean; newsRate: number }
-export interface Profile { name: string; bio: string; joined: number }
+export type ProfileAccent = "blue" | "violet" | "cyan" | "green" | "gold";
+export type ProfileBanner = "aurora" | "midnight" | "sunset" | "ice";
+export type ProfileAvatar = "orb" | "grid" | "mono" | "rings";
+export type ProfileStatus = "Actif" | "En observation" | "En pause";
+export interface Profile {
+  name: string;
+  bio: string;
+  joined: number;
+  title: string;
+  avatarStyle: ProfileAvatar;
+  accent: ProfileAccent;
+  banner: ProfileBanner;
+  status: ProfileStatus;
+}
 
 const MarketCtx = createContext<Ctx | null>(null);
 const ACCOUNT_PREFIX = "nexus-account-v1:";
+const PROFILE_PREFIX = "nexus-profile-v2:";
 const freshAccount = (): Account => ({ cash: START_CASH, holdings: {}, txs: [], watchlist: ["NXQ", "ORBT", "FUSN"] });
+function parseProfile(raw: string | null): Profile | null {
+  if (!raw) return null;
+  try {
+    const value = JSON.parse(raw) as Partial<Profile>;
+    const accents: ProfileAccent[] = ["blue", "violet", "cyan", "green", "gold"];
+    const banners: ProfileBanner[] = ["aurora", "midnight", "sunset", "ice"];
+    const avatars: ProfileAvatar[] = ["orb", "grid", "mono", "rings"];
+    const statuses: ProfileStatus[] = ["Actif", "En observation", "En pause"];
+    const joined = Number(value.joined);
+    return {
+      name: typeof value.name === "string" ? value.name.trim().slice(0, 32) || "Vous" : "Vous",
+      bio: typeof value.bio === "string" ? value.bio.trim().slice(0, 160) : "",
+      joined: Number.isFinite(joined) ? joined : Date.now(),
+      title: typeof value.title === "string" ? value.title.trim().slice(0, 40) || "Market Explorer" : "Market Explorer",
+      avatarStyle: avatars.includes(value.avatarStyle as ProfileAvatar) ? value.avatarStyle as ProfileAvatar : "orb",
+      accent: accents.includes(value.accent as ProfileAccent) ? value.accent as ProfileAccent : "blue",
+      banner: banners.includes(value.banner as ProfileBanner) ? value.banner as ProfileBanner : "aurora",
+      status: statuses.includes(value.status as ProfileStatus) ? value.status as ProfileStatus : "Actif",
+    };
+  } catch { return null; }
+}
+
 function parseAccount(raw: string | null): Account | null {
   if (!raw) return null;
   try {
@@ -88,6 +124,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
   const { session, isAdmin } = useAuth();
   const uid = session?.user.id;
   const storageKey = ACCOUNT_PREFIX + (uid ?? "guest");
+  const profileStorageKey = PROFILE_PREFIX + (uid ?? "guest");
 
   useEffect(() => {
     let cancelled = false;
@@ -95,6 +132,10 @@ export function MarketProvider({ children }: { children: ReactNode }) {
 
     if (!uid || !isSupabaseConfigured()) {
       setAccount(parseAccount(localStorage.getItem(storageKey)) ?? freshAccount());
+      setProfileState(parseProfile(localStorage.getItem(profileStorageKey)) ?? {
+        name: "Vous", bio: "", joined: Date.now(), title: "Market Explorer",
+        avatarStyle: "orb", accent: "blue", banner: "aurora", status: "Actif",
+      });
       loaded.current = true;
       return () => { cancelled = true; };
     }
@@ -134,6 +175,8 @@ export function MarketProvider({ children }: { children: ReactNode }) {
           txs,
           watchlist: parseAccount(localStorage.getItem(storageKey))?.watchlist ?? ["NXQ", "ORBT", "FUSN"],
         });
+        const serverProfile = parseProfile(localStorage.getItem(profileStorageKey));
+        if (serverProfile) setProfileState(serverProfile);
       } catch (error) {
         console.error("[Account] Server state load failed:", error);
         if (!cancelled) setAccount(freshAccount());
@@ -143,7 +186,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     })();
 
     return () => { cancelled = true; };
-  }, [uid, storageKey]);
+  }, [uid, storageKey, profileStorageKey]);
 
   useEffect(() => {
     if (!uid && loaded.current) localStorage.setItem(storageKey, JSON.stringify(account));
@@ -164,25 +207,54 @@ export function MarketProvider({ children }: { children: ReactNode }) {
   // Account-linked profile
   useEffect(() => {
     if (!uid || !isSupabaseConfigured()) {
-      if (!uid) setProfileState({ name: "Vous", bio: "", joined: Date.now() });
+      if (!uid) setProfileState(parseProfile(localStorage.getItem(profileStorageKey)) ?? {
+        name: "Vous", bio: "", joined: Date.now(), title: "Market Explorer",
+        avatarStyle: "orb", accent: "blue", banner: "aurora", status: "Actif",
+      });
       return;
     }
-    supabase.from("profiles").select("name,bio,created_at").eq("id", uid).maybeSingle().then(({ data }) => {
-      if (data) setProfileState({ name: typeof data.name === "string" ? data.name : "Trader", bio: typeof data.bio === "string" ? data.bio : "", joined: Number.isFinite(new Date(data.created_at).getTime()) ? new Date(data.created_at).getTime() : Date.now() });
+    supabase.from("profiles").select("name,bio,created_at,title,avatar_style,accent,banner,status").eq("id", uid).maybeSingle().then(({ data }) => {
+      if (data) setProfileState({
+        name: typeof data.name === "string" ? data.name : "Trader",
+        bio: typeof data.bio === "string" ? data.bio : "",
+        joined: Number.isFinite(new Date(data.created_at).getTime()) ? new Date(data.created_at).getTime() : Date.now(),
+        title: typeof data.title === "string" ? data.title : "Market Explorer",
+        avatarStyle: ["orb","grid","mono","rings"].includes(data.avatar_style) ? data.avatar_style as ProfileAvatar : "orb",
+        accent: ["blue","violet","cyan","green","gold"].includes(data.accent) ? data.accent as ProfileAccent : "blue",
+        banner: ["aurora","midnight","sunset","ice"].includes(data.banner) ? data.banner as ProfileBanner : "aurora",
+        status: ["Actif","En observation","En pause"].includes(data.status) ? data.status as ProfileStatus : "Actif",
+      });
     });
   }, [uid]);
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const setProfile = (p: Partial<Profile>) => {
     setProfileState((x) => {
-      const next = {
+      const next: Profile = {
         ...x,
         ...(p.name !== undefined ? { name: p.name.trim().slice(0, 32) } : {}),
         ...(p.bio !== undefined ? { bio: p.bio.trim().slice(0, 160) } : {}),
+        ...(p.title !== undefined ? { title: p.title.trim().slice(0, 40) || "Market Explorer" } : {}),
+        ...(p.avatarStyle !== undefined ? { avatarStyle: p.avatarStyle } : {}),
+        ...(p.accent !== undefined ? { accent: p.accent } : {}),
+        ...(p.banner !== undefined ? { banner: p.banner } : {}),
+        ...(p.status !== undefined ? { status: p.status } : {}),
       };
       if (uid && isSupabaseConfigured()) {
         if (saveTimer.current) clearTimeout(saveTimer.current);
-        saveTimer.current = setTimeout(() => { supabase.from("profiles").update({ name: next.name || "Trader", bio: next.bio }).eq("id", uid).then(() => {}); }, 500);
+        saveTimer.current = setTimeout(() => {
+          supabase.from("profiles").update({
+            name: next.name || "Trader",
+            bio: next.bio,
+            title: next.title,
+            avatar_style: next.avatarStyle,
+            accent: next.accent,
+            banner: next.banner,
+            status: next.status,
+          }).eq("id", uid).then(({ error }) => error && console.error("[Profile] Save failed:", error));
+        }, 350);
+      } else if (!uid) {
+        localStorage.setItem(profileStorageKey, JSON.stringify(next));
       }
       return next;
     });

@@ -29,7 +29,14 @@ function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    const reset = new URLSearchParams(window.location.search).get("reset") === "1";
+    const params = new URLSearchParams(window.location.search);
+    const reset = params.get("reset") === "1";
+    const oauthError = params.get("error_description") ?? params.get("error");
+    if (oauthError) {
+      setBusy(false);
+      setMsg({ ok: false, text: decodeURIComponent(oauthError.replace(/\\+/g, " ")) });
+      return;
+    }
     if (reset && session) setMode("reset");
     else if (session) navigate({ to: "/profile" });
   }, [session, navigate]);
@@ -121,12 +128,15 @@ function AuthPage() {
         return;
       }
 
-      // signInWithOAuth redirects automatically in the browser.
-      // Keep a manual fallback for environments where it returns the URL
-      // without navigating.
+      // Supabase normally redirects automatically. Keep a fallback for
+      // preview/browser environments where the SDK only returns the URL.
       if (data?.url && window.location.href === redirectTo) {
         window.location.assign(data.url);
+        return;
       }
+
+      // If the SDK did not navigate, do not leave the button stuck forever.
+      setBusy(false);
     } catch (error) {
       setBusy(false);
       setMsg({

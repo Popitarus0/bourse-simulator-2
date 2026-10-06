@@ -34,7 +34,13 @@ function AuthPage() {
     const oauthError = params.get("error_description") ?? params.get("error");
     if (oauthError) {
       setBusy(false);
-      setMsg({ ok: false, text: decodeURIComponent(oauthError.replace(/\\+/g, " ")) });
+      let readableError = oauthError.replace(/\\+/g, " ");
+      try {
+        readableError = decodeURIComponent(readableError);
+      } catch {
+        // Keep the original OAuth error when the provider returns malformed encoding.
+      }
+      setMsg({ ok: false, text: readableError });
       return;
     }
     if (reset && session) setMode("reset");

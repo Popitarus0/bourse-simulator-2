@@ -21,9 +21,9 @@ export type Database = {
         Relationships: []
       }
       profiles: {
-        Row: { bio: string; created_at: string; id: string; name: string }
-        Insert: { bio?: string; created_at?: string; id: string; name?: string }
-        Update: { bio?: string; created_at?: string; id?: string; name?: string }
+        Row: { accent: string; avatar_style: string; banner: string; bio: string; created_at: string; id: string; name: string; status: string; title: string }
+        Insert: { accent?: string; avatar_style?: string; banner?: string; bio?: string; created_at?: string; id: string; name?: string; status?: string; title?: string }
+        Update: { accent?: string; avatar_style?: string; banner?: string; bio?: string; created_at?: string; id?: string; name?: string; status?: string; title?: string }
         Relationships: []
       }
       user_roles: {

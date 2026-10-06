@@ -16,10 +16,12 @@ const NAV = [
 
 function AuthButton() {
   const { session, signOut } = useAuth();
+  const { profile } = useMarket();
+  const initials = (profile.name || "NX").slice(0, 2).toUpperCase();
   return session ? (
-    <button onClick={signOut} aria-label="Se déconnecter" title="Se déconnecter" className="order-last flex h-8 w-8 items-center justify-center rounded-full bg-accent hover:bg-primary/20"><LogOut className="h-4 w-4" /></button>
+    <button onClick={signOut} aria-label="Se déconnecter" title="Se déconnecter" className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-white/5 text-[10px] font-semibold hover:bg-primary/20">{initials}</button>
   ) : (
-    <Link to="/auth" className="order-last flex items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-primary-foreground"><LogIn className="h-4 w-4" />Connexion</Link>
+    <Link to="/auth" className="flex items-center gap-1.5 rounded-xl bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground shadow-lg shadow-primary/10"><LogIn className="h-3.5 w-3.5" />Connexion</Link>
   );
 }
 
@@ -62,7 +64,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-5 text-xs">
-            <Link to="/profile" aria-label="Profil" className="order-last flex h-8 w-8 items-center justify-center rounded-full bg-accent hover:bg-primary/20"><User className="h-4 w-4" /></Link>
+            <AuthButton />
+            <Link to="/profile" aria-label="Profil" className="hidden h-8 w-8 items-center justify-center rounded-full bg-accent hover:bg-primary/20 sm:flex"><User className="h-4 w-4" /></Link>
             <div className="text-right"><div className="text-muted-foreground">Valeur totale</div><div className="num text-sm font-medium">{fmt(portfolioValue)} NX$</div></div>
             <div className="hidden text-right sm:block"><div className="text-muted-foreground">Liquidités</div><div className="num text-sm">{fmt(account.cash)}</div></div>
           </div>

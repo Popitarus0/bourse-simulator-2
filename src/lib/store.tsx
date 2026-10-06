@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { HISTORY_LEN, makeNews, seedNews, seedPlayers, seedStocks, type NewsItem, type Player, type Stock } from "./market";
-import { supabase } from "@/integrations/supabase/client";
+import { isSupabaseConfigured, supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./auth";
 
 export const START_CASH = 100000;
@@ -112,7 +112,10 @@ export function MarketProvider({ children }: { children: ReactNode }) {
 
   // Account-linked profile
   useEffect(() => {
-    if (!uid) { setProfileState({ name: "Vous", bio: "", joined: Date.now() }); return; }
+    if (!uid || !isSupabaseConfigured()) {
+      if (!uid) setProfileState({ name: "Vous", bio: "", joined: Date.now() });
+      return;
+    }
     supabase.from("profiles").select("name,bio,created_at").eq("id", uid).maybeSingle().then(({ data }) => {
       if (data) setProfileState({ name: typeof data.name === "string" ? data.name : "Trader", bio: typeof data.bio === "string" ? data.bio : "", joined: Number.isFinite(new Date(data.created_at).getTime()) ? new Date(data.created_at).getTime() : Date.now() });
     });
@@ -126,7 +129,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
         ...(p.name !== undefined ? { name: p.name.trim().slice(0, 32) } : {}),
         ...(p.bio !== undefined ? { bio: p.bio.trim().slice(0, 160) } : {}),
       };
-      if (uid) {
+      if (uid && isSupabaseConfigured()) {
         if (saveTimer.current) clearTimeout(saveTimer.current);
         saveTimer.current = setTimeout(() => { supabase.from("profiles").update({ name: next.name || "Trader", bio: next.bio }).eq("id", uid).then(() => {}); }, 500);
       }
@@ -135,7 +138,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
   };
 
   const setAdmin = (a: Partial<AdminSettings>) => {
-    if (!isAdmin) return;
+    if (!isAdmin || !isSupabaseConfigured()) return;
     setAdminState((prev) => {
       const n = { ...prev, ...a };
       supabase.from("market_settings").update({ speed: n.speed, volatility: n.volatility, trend: n.trend, news_rate: n.newsRate, paused: n.paused, updated_at: new Date().toISOString() }).eq("id", 1).then(() => {});

@@ -87,6 +87,7 @@ create index if not exists paper_holdings_user_id_idx on public.paper_holdings(u
 create index if not exists paper_transactions_user_time_idx on public.paper_transactions(user_id, created_at desc);
 
 create schema if not exists private;
+grant usage on schema private to authenticated;
 
 create or replace function private.has_role(_user_id uuid, _role public.app_role)
 returns boolean

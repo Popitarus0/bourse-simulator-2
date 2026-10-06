@@ -151,7 +151,7 @@ function Profile() {
               <Field label="Couleur d'accent">
                 <div className="flex flex-wrap gap-2">
                   {(Object.keys(ACCENTS) as ProfileAccent[]).map((a) => (
-                    <button key={a} onClick={() => setProfile({ accent: a })} title={ACCENTS[a].label} className={"flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 ring-2 ring-offset-2 ring-offset-transparent transition " + (profile.accent === a ? ACCENTS[a].ring : "ring-transparent")}>
+                    <button key={a} onClick={() => setProfile({ accent: a })} title={ACCENTS[a].label} className={"relative flex h-9 w-9 items-center justify-center rounded-full border border-white/10 bg-white/5 ring-2 ring-offset-2 ring-offset-transparent transition " + (profile.accent === a ? ACCENTS[a].ring : "ring-transparent")}>
                       <span className={"h-4 w-4 rounded-full " + ACCENTS[a].dot} />
                       {profile.accent === a && <Check className="absolute h-3.5 w-3.5 text-white" />}
                     </button>

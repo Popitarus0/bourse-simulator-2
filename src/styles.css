@@ -124,3 +124,45 @@
 @utility flash-up { animation: flash-up 0.9s ease-out; }
 @utility flash-down { animation: flash-down 0.9s ease-out; }
 
+
+.market-ambient {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.72;
+  mask-image: linear-gradient(to bottom, black 0%, black 72%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 72%, transparent 100%);
+}
+
+.market-orb {
+  position: absolute;
+  width: 22rem;
+  height: 22rem;
+  border-radius: 999px;
+  filter: blur(70px);
+  opacity: 0.22;
+  will-change: transform, background;
+  animation: market-orb-float 18s ease-in-out infinite alternate, market-orb-color 11s ease-in-out infinite alternate;
+}
+
+.market-orb-a { left: -8rem; top: 8rem; background: var(--up); animation-delay: -2s; }
+.market-orb-b { right: -10rem; top: 20rem; background: var(--down); animation-delay: -7s; }
+.market-orb-c { left: 35%; top: 34rem; width: 18rem; height: 18rem; background: var(--primary); animation-delay: -11s; }
+.market-orb-d { right: 18%; top: 4rem; width: 14rem; height: 14rem; background: var(--up); opacity: 0.13; animation-delay: -15s; }
+
+@keyframes market-orb-float {
+  0% { transform: translate3d(-20px, 10px, 0) scale(0.92); }
+  50% { transform: translate3d(45px, -28px, 0) scale(1.08); }
+  100% { transform: translate3d(-5px, 38px, 0) scale(0.98); }
+}
+
+@keyframes market-orb-color {
+  0%, 100% { filter: blur(70px) saturate(100%); }
+  50% { filter: blur(82px) saturate(150%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .market-orb { animation: none; }
+}

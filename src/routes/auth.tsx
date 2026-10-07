@@ -29,6 +29,30 @@ function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+
+    const finishOAuth = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get("code");
+
+      if (code && isSupabaseConfigured()) {
+        setBusy(true);
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+        if (!cancelled && error) {
+          setMsg({ ok: false, text: error.message });
+          setBusy(false);
+          return;
+        }
+
+        if (!cancelled) {
+          window.history.replaceState({}, document.title, "/auth");
+          setBusy(false);
+        }
+      }
+    };
+
+    void finishOAuth();
+
     const params = new URLSearchParams(window.location.search);
     const reset = params.get("reset") === "1";
     const oauthError = params.get("error_description") ?? params.get("error");
@@ -46,6 +70,8 @@ function AuthPage() {
     if (reset && session) setMode("reset");
     else if (session) navigate({ to: "/profile" });
   }, [session, navigate]);
+
+  useEffect(() => () => { cancelled = true; }, []);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();

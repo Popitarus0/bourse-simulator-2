@@ -56,7 +56,13 @@ function Market() {
 
   return (
     <AppShell>
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="market-ambient" aria-hidden="true">
+        <span className="market-orb market-orb-a" />
+        <span className="market-orb market-orb-b" />
+        <span className="market-orb market-orb-c" />
+        <span className="market-orb market-orb-d" />
+      </div>
+      <div className="relative z-10 grid gap-4 md:grid-cols-3">
         <MoverCard title="Plus fortes hausses" items={sorted.slice(0, 3)} />
         <MoverCard title="Plus fortes baisses" items={sorted.slice(-3).reverse()} />
         <MoverCard title="Watchlist" items={watch.slice(0, 3)} empty="Ajoutez des étoiles" />

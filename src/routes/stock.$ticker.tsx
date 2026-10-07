@@ -41,7 +41,9 @@ function StockPage() {
 
   return (
     <AppShell>
-      <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
+      <div className="nexus-page nexus-stock relative">
+        <div className="financial-grid-ambient" aria-hidden="true" />
+        <div className="relative z-10 grid gap-4 lg:grid-cols-[1fr_340px]">
         <div className="space-y-4">
           <div className="panel p-5">
             <div className="flex flex-wrap items-start gap-4">
@@ -96,6 +98,7 @@ function StockPage() {
               </div>
             ) : <p className="mt-3 text-muted-foreground">Aucune position. <Link to="/portfolio" className="text-primary">Portefeuille →</Link></p>}
           </div>
+        </div>
         </div>
       </div>
     </AppShell>

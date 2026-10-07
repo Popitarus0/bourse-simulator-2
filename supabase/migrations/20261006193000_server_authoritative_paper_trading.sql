@@ -95,12 +95,12 @@ language sql
 stable
 security definer
 set search_path = ''
-as $
+as $$
   select exists(
     select 1 from public.user_roles
     where user_id = _user_id and role = _role
   )
-$;
+$$;
 
 revoke all on function private.has_role(uuid, public.app_role) from public, anon;
 grant execute on function private.has_role(uuid, public.app_role) to authenticated;

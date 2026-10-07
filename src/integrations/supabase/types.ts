@@ -44,24 +44,132 @@ export type Database = {
         }
         Relationships: []
       }
+      paper_accounts: {
+        Row: {
+          cash: number
+          created_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cash?: number
+          created_at?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cash?: number
+          created_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      paper_holdings: {
+        Row: {
+          avg_price: number
+          qty: number
+          ticker: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avg_price: number
+          qty: number
+          ticker: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avg_price?: number
+          qty?: number
+          ticker?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      paper_quotes: {
+        Row: {
+          price: number
+          ticker: string
+          updated_at: string
+        }
+        Insert: {
+          price: number
+          ticker: string
+          updated_at?: string
+        }
+        Update: {
+          price?: number
+          ticker?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      paper_transactions: {
+        Row: {
+          created_at: string
+          id: string
+          price: number
+          qty: number
+          side: string
+          ticker: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          price: number
+          qty: number
+          side: string
+          ticker: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          price?: number
+          qty?: number
+          side?: string
+          ticker?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
+          accent: string
+          avatar_style: string
+          banner: string
           bio: string
           created_at: string
           id: string
           name: string
+          status: string
+          title: string
         }
         Insert: {
+          accent?: string
+          avatar_style?: string
+          banner?: string
           bio?: string
           created_at?: string
           id: string
           name?: string
+          status?: string
+          title?: string
         }
         Update: {
+          accent?: string
+          avatar_style?: string
+          banner?: string
           bio?: string
           created_at?: string
           id?: string
           name?: string
+          status?: string
+          title?: string
         }
         Relationships: []
       }
@@ -88,6 +196,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_set_paper_cash: {
+        Args: { p_cash: number; p_user_id: string }
+        Returns: undefined
+      }
+      admin_set_quote: {
+        Args: { p_price: number; p_ticker: string }
+        Returns: undefined
+      }
+      execute_paper_trade: {
+        Args: {
+          p_client_price?: number
+          p_qty: number
+          p_side: string
+          p_ticker: string
+        }
+        Returns: Json
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -95,6 +220,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      reset_paper_account: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "user"

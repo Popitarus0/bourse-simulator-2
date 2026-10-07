@@ -1,7 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
 import { ArrowRight, Eye, EyeOff, LockKeyhole, Mail, ShieldCheck, Sparkles } from "lucide-react";
-import { getSupabaseConfigError, isSupabaseConfigured, supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/auth")({
@@ -19,7 +18,7 @@ export const Route = createFileRoute("/auth")({
 type Mode = "in" | "up" | "forgot" | "reset";
 
 function AuthPage() {
-  const { session, supabaseConfigured } = useAuth();
+  const { session, signIn, signUp, resetPassword } = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>("in");
   const [email, setEmail] = useState("");
@@ -29,102 +28,42 @@ function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
-
-    const finishOAuth = async () => {
-      const params = new URLSearchParams(window.location.search);
-      const code = params.get("code");
-
-      if (code && isSupabaseConfigured()) {
-        setBusy(true);
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-        if (!cancelled && error) {
-          setMsg({ ok: false, text: error.message });
-          setBusy(false);
-          return;
-        }
-
-        if (!cancelled) {
-          window.history.replaceState({}, document.title, "/auth");
-          setBusy(false);
-        }
-      }
-    };
-
-    void finishOAuth();
-
-    const params = new URLSearchParams(window.location.search);
-    const reset = params.get("reset") === "1";
-    const oauthError = params.get("error_description") ?? params.get("error");
-    if (oauthError) {
-      setBusy(false);
-      let readableError = oauthError.replace(/\\+/g, " ");
-      try {
-        readableError = decodeURIComponent(readableError);
-      } catch {
-        // Keep the original OAuth error when the provider returns malformed encoding.
-      }
-      setMsg({ ok: false, text: readableError });
-      return;
-    }
-    if (reset && session) setMode("reset");
-    else if (session) navigate({ to: "/profile" });
-  }, [session, navigate]);
-
-  useEffect(() => () => { cancelled = true; }, []);
+    if (session && mode !== "reset") navigate({ to: "/profile" });
+  }, [session, mode, navigate]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!isSupabaseConfigured()) {
-      setMsg({ ok: false, text: getSupabaseConfigError() ?? "Connexion indisponible." });
-      return;
-    }
-
     setBusy(true);
     setMsg(null);
+
     try {
       if (mode === "forgot") {
-        const result = await supabase.auth.resetPasswordForEmail(email.trim(), {
-          redirectTo: window.location.origin + "/auth?reset=1",
-        });
-        if (result.error) setMsg({ ok: false, text: result.error.message });
-        else setMsg({ ok: true, text: "Si cette adresse existe, un e-mail de réinitialisation vient d'être envoyé." });
+        setMsg({ ok: true, text: "Mode local : passe à l'étape suivante pour définir un nouveau mot de passe." });
+        setMode("reset");
         return;
       }
 
       if (mode === "reset") {
-        if (password.length < 8) {
-          setMsg({ ok: false, text: "Le nouveau mot de passe doit contenir au moins 8 caractères." });
+        const error = await resetPassword(email, password);
+        if (error) {
+          setMsg({ ok: false, text: error });
           return;
         }
-        const result = await supabase.auth.updateUser({ password });
-        if (result.error) setMsg({ ok: false, text: result.error.message });
-        else {
-          setMsg({ ok: true, text: "Mot de passe modifié. Ton compte est prêt." });
-          setPassword("");
-          setTimeout(() => navigate({ to: "/profile" }), 700);
-        }
+        setMsg({ ok: true, text: "Mot de passe modifié. Ton compte est prêt." });
+        setPassword("");
+        setTimeout(() => navigate({ to: "/profile" }), 500);
         return;
       }
 
-      const result = mode === "in"
-        ? await supabase.auth.signInWithPassword({ email: email.trim(), password })
-        : await supabase.auth.signUp({
-            email: email.trim(),
-            password,
-            options: {
-              emailRedirectTo: window.location.origin + "/auth",
-              data: { name: email.trim().split("@")[0].slice(0, 32) },
-            },
-          });
+      const error = mode === "in"
+        ? await signIn(email, password)
+        : await signUp(email, password, email.trim().split("@")[0]);
 
-      if (result.error) {
-        setMsg({ ok: false, text: result.error.message });
-      } else if (mode === "up" && !result.data.session) {
-        setMsg({ ok: true, text: "Compte créé. Vérifie ta boîte mail pour confirmer ton adresse." });
+      if (error) {
+        setMsg({ ok: false, text: error });
       } else {
-        setMsg({ ok: true, text: "Connexion réussie." });
-        setTimeout(() => navigate({ to: "/profile" }), 350);
+        setMsg({ ok: true, text: mode === "up" ? "Compte créé. Bienvenue sur NEXUS MARKETS." : "Connexion réussie." });
+        setTimeout(() => navigate({ to: "/profile" }), 250);
       }
     } catch (error) {
       setMsg({ ok: false, text: error instanceof Error ? error.message : "Connexion impossible." });
@@ -133,58 +72,14 @@ function AuthPage() {
     }
   };
 
-  const google = async () => {
-    if (!isSupabaseConfigured()) {
-      setMsg({ ok: false, text: getSupabaseConfigError() ?? "Connexion indisponible." });
-      return;
-    }
-
-    setBusy(true);
-    setMsg(null);
-
-    try {
-      const redirectTo = new URL("/auth", window.location.origin).toString();
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo,
-          queryParams: {
-            prompt: "select_account",
-          },
-        },
-      });
-
-      if (error) {
-        setMsg({ ok: false, text: error.message });
-        setBusy(false);
-        return;
-      }
-
-      // Supabase normally redirects automatically. Keep a fallback for
-      // preview/browser environments where the SDK only returns the URL.
-      if (data?.url && window.location.href === redirectTo) {
-        window.location.assign(data.url);
-        return;
-      }
-
-      // If the SDK did not navigate, do not leave the button stuck forever.
-      setBusy(false);
-    } catch (error) {
-      setBusy(false);
-      setMsg({
-        ok: false,
-        text: error instanceof Error ? error.message : "Connexion Google impossible.",
-      });
-    }
-  };
   const title = mode === "up" ? "Créer ton compte" : mode === "forgot" ? "Récupérer ton compte" : mode === "reset" ? "Nouveau mot de passe" : "Ravi de te revoir";
   const subtitle = mode === "up"
     ? "Crée ton identité de trader et conserve ton portefeuille."
     : mode === "forgot"
-      ? "Entre ton e-mail pour recevoir un lien sécurisé."
+      ? "Entre ton e-mail pour récupérer ton compte sur cet appareil."
       : mode === "reset"
         ? "Choisis un nouveau mot de passe pour sécuriser ton compte."
-        : "Connecte-toi pour retrouver ton portefeuille sur tes appareils.";
+        : "Connecte-toi pour retrouver ton portefeuille sur cet appareil.";
 
   return (
     <div className="relative min-h-[calc(100vh-2rem)] overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/50 p-4 shadow-2xl backdrop-blur-2xl md:p-8">
@@ -198,9 +93,9 @@ function AuthPage() {
           <h1 className="max-w-xl text-6xl font-semibold tracking-tight text-white">Ton marché.<br /><span className="text-primary">Ton identité.</span></h1>
           <p className="mt-6 max-w-lg text-base leading-7 text-white/55">Connecte ton compte pour conserver ton portefeuille, tes transactions et toute la personnalisation de ton profil.</p>
           <div className="mt-8 grid max-w-lg grid-cols-3 gap-3">
-            <Trust icon={<ShieldCheck />} title="Sécurisé" text="Session Supabase" />
+            <Trust icon={<ShieldCheck />} title="Sécurisé" text="Session locale" />
             <Trust icon={<LockKeyhole />} title="Fictif" text="0 € réel" />
-            <Trust icon={<Sparkles />} title="Persistant" text="Profil sauvegardé" />
+            <Trust icon={<Sparkles />} title="Persistant" text="Sur cet appareil" />
           </div>
         </div>
 
@@ -242,8 +137,8 @@ function AuthPage() {
               </div>
             )}
 
-            <button disabled={busy || !supabaseConfigured} className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/15 transition hover:opacity-90 disabled:opacity-50">
-              {busy ? "Chargement…" : mode === "in" ? "Se connecter" : mode === "up" ? "Créer mon compte" : mode === "forgot" ? "Envoyer le lien" : "Changer le mot de passe"}
+            <button disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/15 transition hover:opacity-90 disabled:opacity-50">
+              {busy ? "Chargement…" : mode === "in" ? "Se connecter" : mode === "up" ? "Créer mon compte" : mode === "forgot" ? "Continuer" : "Changer le mot de passe"}
               {!busy && mode !== "forgot" && mode !== "reset" && <ArrowRight className="h-4 w-4" />}
             </button>
           </form>
@@ -255,7 +150,7 @@ function AuthPage() {
           {mode !== "forgot" && mode !== "reset" && (
             <>
               <div className="my-5 flex items-center gap-3"><div className="h-px flex-1 bg-white/10" /><span className="text-[10px] text-white/30">OU</span><div className="h-px flex-1 bg-white/10" /></div>
-              <button disabled={busy || !supabaseConfigured} onClick={google} className="flex w-full items-center justify-center gap-3 rounded-xl border border-white/10 bg-white/5 py-3 text-sm font-medium text-white/80 transition hover:bg-white/10 disabled:opacity-50">
+              <button type="button" onClick={() => { setMsg({ ok: true, text: "La connexion Google sera ajoutée lorsque l'authentification en ligne sera configurée." }); }} className="flex w-full items-center justify-center gap-3 rounded-xl border border-white/10 bg-white/5 py-3 text-sm font-medium text-white/80 transition hover:bg-white/10">
                 <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-[11px] font-bold text-slate-900">G</span>
                 Continuer avec Google
               </button>
@@ -275,4 +170,3 @@ function AuthPage() {
 function Trust({ icon, title, text }: { icon: React.ReactNode; title: string; text: string }) {
   return <div className="rounded-2xl border border-white/10 bg-white/[.04] p-4 backdrop-blur-xl"><div className="text-primary">{icon}</div><div className="mt-3 text-xs font-semibold text-white">{title}</div><div className="mt-1 text-[10px] text-white/40">{text}</div></div>;
 }
-

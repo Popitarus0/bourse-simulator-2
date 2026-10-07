@@ -29,7 +29,7 @@ export function TickerTape() {
   const { stocks } = useMarket();
   const items = [...stocks, ...stocks];
   return (
-    <div className="overflow-hidden border-b bg-surface">
+    <div className="overflow-hidden border-b border-white/10 bg-white/[0.025] backdrop-blur-xl">
       <div className="flex w-max animate-ticker gap-8 py-1.5 text-xs">
         {items.map((s, i) => {
           const c = change(s);
@@ -50,7 +50,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { portfolioValue, account } = useMarket();
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-30 border-b bg-background/90 backdrop-blur">
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-background/55 backdrop-blur-2xl">
         <div className="mx-auto flex h-14 max-w-7xl items-center gap-6 px-4">
           <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight">
             <Activity className="h-5 w-5 text-gold" />
@@ -73,7 +73,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <TickerTape />
       </header>
       <main className="mx-auto max-w-7xl px-4 py-6 pb-24 md:pb-6">{children}</main>
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t bg-background md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-white/10 bg-background/65 backdrop-blur-2xl md:hidden">
         {NAV.map((n) => (
           <Link key={n.to} to={n.to} className="flex flex-col items-center gap-1 py-2 text-[11px] text-muted-foreground" activeProps={{ className: "!text-primary" }}>
             <n.icon className="h-5 w-5" />{n.label}

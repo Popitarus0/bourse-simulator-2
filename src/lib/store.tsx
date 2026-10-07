@@ -81,7 +81,7 @@ function parseAccount(raw: string | null): Account | null {
     for (const [ticker, raw] of Object.entries(value.holdings as Record<string, unknown>)) {
       if (!raw || typeof raw !== "object") continue;
       const h = raw as Partial<Holding>;
-      if (Number.isInteger(h.qty) && Number.isFinite(h.qty) && h.qty > 0 && Number.isFinite(h.avg) && h.avg >= 0) {
+      if (typeof h.qty === "number" && typeof h.avg === "number" && Number.isInteger(h.qty) && h.qty > 0 && Number.isFinite(h.avg) && h.avg >= 0) {
         holdings[ticker] = { qty: h.qty, avg: h.avg };
       }
     }
@@ -91,8 +91,8 @@ function parseAccount(raw: string | null): Account | null {
       return typeof t.id === "string" &&
         typeof t.ticker === "string" &&
         (t.side === "buy" || t.side === "sell") &&
-        Number.isInteger(t.qty) && t.qty > 0 &&
-        Number.isFinite(t.price) && t.price >= 0 &&
+        typeof t.qty === "number" && Number.isInteger(t.qty) && t.qty > 0 &&
+        typeof t.price === "number" && Number.isFinite(t.price) && t.price >= 0 &&
         Number.isFinite(t.time);
     }).slice(0, 1000);
     return {
@@ -271,9 +271,9 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     setProfileState((x) => {
       const next: Profile = {
         ...x,
-        ...(p.name !== undefined ? { name: p.name.trim().slice(0, 32) } : {}),
-        ...(p.bio !== undefined ? { bio: p.bio.trim().slice(0, 160) } : {}),
-        ...(p.title !== undefined ? { title: p.title.trim().slice(0, 40) || "Market Explorer" } : {}),
+        ...(p.name !== undefined ? { name: p.name.slice(0, 32) } : {}),
+        ...(p.bio !== undefined ? { bio: p.bio.slice(0, 160) } : {}),
+        ...(p.title !== undefined ? { title: p.title.slice(0, 40) } : {}),
         ...(p.avatarStyle !== undefined ? { avatarStyle: p.avatarStyle } : {}),
         ...(p.accent !== undefined ? { accent: p.accent } : {}),
         ...(p.banner !== undefined ? { banner: p.banner } : {}),
@@ -283,9 +283,9 @@ export function MarketProvider({ children }: { children: ReactNode }) {
         if (saveTimer.current) clearTimeout(saveTimer.current);
         saveTimer.current = setTimeout(() => {
           supabase.from("profiles").update({
-            name: next.name || "Trader",
-            bio: next.bio,
-            title: next.title,
+            name: next.name.trim() || "Trader",
+            bio: next.bio.trim(),
+            title: next.title.trim() || "Market Explorer",
             avatar_style: next.avatarStyle,
             accent: next.accent,
             banner: next.banner,
@@ -341,23 +341,11 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     if (!s || !Number.isFinite(qty) || !Number.isInteger(qty) || qty <= 0 || qty > 1000000) return "Quantité invalide";
 
     if (uid && isSupabaseConfigured()) {
-      const { data: quote, error: quoteError } = await supabase
-        .from("paper_quotes")
-        .select("price")
-        .eq("ticker", ticker)
-        .maybeSingle();
-
-      if (quoteError) {
-        console.warn("[Trade] Quote lookup failed, server will remain authoritative:", quoteError.message);
-      } else if (quote && Number.isFinite(Number(quote.price)) && Number(quote.price) > 0) {
-        setPrice(ticker, Number(quote.price));
-      }
-
       const { data: tradeResult, error } = await supabase.rpc("execute_paper_trade", {
         p_ticker: ticker,
         p_side: side,
         p_qty: qty,
-        p_client_price: quote && Number.isFinite(Number(quote.price)) ? Number(quote.price) : s.price,
+        p_client_price: s.price,
       });
       if (error) {
         const messages: Record<string, string> = {
@@ -470,7 +458,11 @@ export function MarketProvider({ children }: { children: ReactNode }) {
         return;
       }
       setAccount((a) => ({ ...a, cash: v }));
-    }, setPrice: (t, p) => isAdmin && setPrice(t, p), pushNews: (t, i) => isAdmin && pushNews(t, i), profile, setProfile }}>
+    }, setPrice: (t, p) => {
+      if (!isAdmin) return;
+      setPrice(t, p);
+      if (uid && isSupabaseConfigured()) supabase.rpc("admin_set_quote", { p_ticker: t, p_price: p }).then(({ error }) => error && console.error("[Admin] Quote update failed:", error));
+    }, pushNews: (t, i) => isAdmin && pushNews(t, i), profile, setProfile }}>
       {children}
     </MarketCtx.Provider>
   );

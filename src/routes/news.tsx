@@ -20,6 +20,9 @@ function News() {
   const hydrated = useHydrated();
   return (
     <AppShell>
+      <div className="nexus-page nexus-news relative">
+        <div className="news-glow" aria-hidden="true" />
+        <div className="relative z-10">
       <div className="mb-4 flex items-center gap-2"><h1 className="text-xl font-semibold">Fil d'actualités</h1><span className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-down" />EN DIRECT</span></div>
       <div className="panel divide-y">
         {news.map((n) => (
@@ -31,6 +34,7 @@ function News() {
             {n.impact !== 0 && <Delta v={n.impact} className="w-20 text-right text-xs" />}
           </article>
         ))}
+        </div>
       </div>
     </AppShell>
   );

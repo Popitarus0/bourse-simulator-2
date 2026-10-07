@@ -20,6 +20,13 @@ function Portfolio() {
   const rows = Object.entries(account.holdings).map(([t, h]) => ({ t, h, s: byTicker(t)! }));
   const invested = portfolioValue - account.cash;
   const perf = (portfolioValue - START_CASH) / START_CASH;
+  const winners = [...rows].sort((a, b) => (b.s.price - b.h.avg) / b.h.avg - (a.s.price - a.h.avg) / a.h.avg);
+  const sectorAllocation = Object.entries(
+    rows.reduce<Record<string, number>>((acc, { h, s }) => {
+      acc[s.sector] = (acc[s.sector] ?? 0) + h.qty * s.price;
+      return acc;
+    }, {}),
+  ).sort((a, b) => b[1] - a[1]);
 
   return (
     <AppShell>

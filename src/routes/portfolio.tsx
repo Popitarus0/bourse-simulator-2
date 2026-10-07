@@ -30,6 +30,9 @@ function Portfolio() {
 
   return (
     <AppShell>
+      <div className="nexus-page nexus-portfolio relative">
+        <div className="portfolio-particles" aria-hidden="true">{Array.from({ length: 12 }, (_, i) => <span key={i} />)}</div>
+        <div className="relative z-10">
       <div className="grid gap-3 md:grid-cols-4">
         <Stat k="Valeur totale" v={`${fmt(portfolioValue)} NX$`} gold />
         <Stat k="Investi" v={fmt(invested)} />
@@ -88,6 +91,7 @@ function Portfolio() {
             ))}
           </div>
         )}
+        </div>
       </div>
     </AppShell>
   );

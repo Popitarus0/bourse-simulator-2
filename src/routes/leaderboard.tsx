@@ -22,6 +22,9 @@ function Leaderboard() {
   const myRank = all.findIndex((p) => p.isYou) + 1;
   return (
     <AppShell>
+      <div className="nexus-page nexus-leaderboard relative">
+        <div className="market-flow-lines" aria-hidden="true"><span /><span /><span /></div>
+        <div className="relative z-10">
       <div className="mb-4 flex flex-wrap items-end gap-4">
         <div><h1 className="text-xl font-semibold">Classement · Saison 1</h1><p className="text-sm text-muted-foreground">Mis à jour en continu</p></div>
         <div className="panel ml-auto px-4 py-2 text-sm">Votre rang : <span className="num text-gold">#{myRank}</span> / {all.length}</div>
@@ -36,6 +39,7 @@ function Leaderboard() {
             <Delta v={(p.value - START_CASH) / START_CASH} className="w-24 text-right" />
           </div>
         ))}
+        </div>
       </div>
     </AppShell>
   );

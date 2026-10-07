@@ -46,6 +46,14 @@ function Market() {
       .sort((a, b) => b.change - a.change);
   }, [stocks]);
 
+  const marketPulse = useMemo(() => {
+    const avgChange = stocks.length ? stocks.reduce((sum, s) => sum + change(s), 0) / stocks.length : 0;
+    const volatility = stocks.length ? stocks.reduce((sum, s) => sum + Math.abs(change(s)), 0) / stocks.length : 0;
+    const score = Math.max(0, Math.min(100, 50 + avgChange * 900));
+    const mood = score >= 65 ? "Optimiste" : score <= 35 ? "Prudente" : "Neutre";
+    return { avgChange, volatility, score, mood };
+  }, [stocks]);
+
   return (
     <AppShell>
       <div className="grid gap-4 md:grid-cols-3">
@@ -87,6 +95,31 @@ function Market() {
                 <Delta v={s.change} className="w-16 text-right text-xs" />
               </div>
             ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4 grid gap-4 md:grid-cols-3">
+        <div className="panel p-4 md:col-span-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">NEXUS Market Pulse</div>
+              <div className="mt-1 text-lg font-semibold">{marketPulse.mood}</div>
+            </div>
+            <div className="num text-2xl font-semibold">{marketPulse.score.toFixed(0)}<span className="text-sm text-muted-foreground">/100</span></div>
+          </div>
+          <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
+            <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${marketPulse.score}%` }} />
+          </div>
+          <div className="mt-2 flex justify-between text-xs text-muted-foreground">
+            <span>Prudence</span><span>Équilibre</span><span>Confiance</span>
+          </div>
+        </div>
+        <div className="panel p-4">
+          <div className="text-xs uppercase tracking-wider text-muted-foreground">Indicateurs</div>
+          <div className="mt-3 space-y-3 text-sm">
+            <div className="flex justify-between"><span className="text-muted-foreground">Variation moyenne</span><Delta v={marketPulse.avgChange} /></div>
+            <div className="flex justify-between"><span className="text-muted-foreground">Amplitude moyenne</span><span className="num">{(marketPulse.volatility * 100).toFixed(2)} %</span></div>
           </div>
         </div>
       </div>

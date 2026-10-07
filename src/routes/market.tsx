@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
-import { Star } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Star, TrendingDown, TrendingUp } from "lucide-react";
 import { AppShell, Delta } from "@/components/AppShell";
 import { Sparkline } from "@/components/charts";
 import { useMarket } from "@/lib/store";
@@ -27,12 +27,68 @@ function Market() {
   const sorted = [...stocks].sort((a, b) => change(b) - change(a));
   const watch = stocks.filter((s) => account.watchlist.includes(s.ticker));
 
+  const breadth = useMemo(() => ({
+    up: stocks.filter((s) => change(s) > 0.001).length,
+    down: stocks.filter((s) => change(s) < -0.001).length,
+    flat: stocks.filter((s) => Math.abs(change(s)) <= 0.001).length,
+  }), [stocks]);
+
+  const sectorPulse = useMemo(() => {
+    const groups = new Map<string, { total: number; count: number }>();
+    for (const s of stocks) {
+      const current = groups.get(s.sector) ?? { total: 0, count: 0 };
+      current.total += change(s);
+      current.count += 1;
+      groups.set(s.sector, current);
+    }
+    return [...groups.entries()]
+      .map(([name, value]) => ({ name, change: value.total / value.count }))
+      .sort((a, b) => b.change - a.change);
+  }, [stocks]);
+
   return (
     <AppShell>
       <div className="grid gap-4 md:grid-cols-3">
         <MoverCard title="Plus fortes hausses" items={sorted.slice(0, 3)} />
         <MoverCard title="Plus fortes baisses" items={sorted.slice(-3).reverse()} />
         <MoverCard title="Watchlist" items={watch.slice(0, 3)} empty="Ajoutez des étoiles" />
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+        <div className="panel p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">Market breadth</div>
+              <div className="mt-1 text-sm">État général du marché</div>
+            </div>
+            <span className="text-xs text-muted-foreground">{stocks.length} titres</span>
+          </div>
+          <div className="flex h-2 overflow-hidden rounded-full bg-muted">
+            <div className="bg-up transition-all" style={{ width: `${(breadth.up / stocks.length) * 100}%` }} />
+            <div className="bg-muted-foreground/40 transition-all" style={{ width: `${(breadth.flat / stocks.length) * 100}%` }} />
+            <div className="bg-down transition-all" style={{ width: `${(breadth.down / stocks.length) * 100}%` }} />
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-3 text-sm">
+            <div><div className="flex items-center gap-1.5 text-up"><TrendingUp className="h-3.5 w-3.5" />Hausses</div><div className="num mt-1">{breadth.up}</div></div>
+            <div><div className="text-muted-foreground">Stables</div><div className="num mt-1">{breadth.flat}</div></div>
+            <div><div className="flex items-center gap-1.5 text-down"><TrendingDown className="h-3.5 w-3.5" />Baisses</div><div className="num mt-1">{breadth.down}</div></div>
+          </div>
+        </div>
+
+        <div className="panel p-4">
+          <div className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">Performance sectorielle</div>
+          <div className="space-y-2.5">
+            {sectorPulse.slice(0, 4).map((s) => (
+              <div key={s.name} className="flex items-center gap-3 text-sm">
+                <span className="min-w-0 flex-1 truncate">{s.name}</span>
+                <div className="h-1.5 w-20 overflow-hidden rounded-full bg-muted">
+                  <div className={s.change >= 0 ? "h-full bg-up" : "h-full bg-down"} style={{ width: `${Math.min(100, Math.max(8, Math.abs(s.change) * 1200))}%` }} />
+                </div>
+                <Delta v={s.change} className="w-16 text-right text-xs" />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
       <div className="panel mt-4">

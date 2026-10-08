@@ -56,7 +56,7 @@ function AdminPanelInner() {
         <Shield className="h-5 w-5" />
       </button>
       {open && (
-        <div style={{ left: Math.max(8, panelLeft), top: Math.max(8, panelTop) }} className="glass fixed z-50 w-80 rounded-2xl p-4 text-sm animate-in fade-in zoom-in-95">
+        <div style={{ left: Math.max(8, panelLeft), top: Math.max(8, panelTop) }} className="fixed z-50 w-80 rounded-2xl border border-white/10 bg-[#0a0d12]/[.98] p-4 text-sm shadow-2xl backdrop-blur-xl animate-in fade-in zoom-in-95">
           <div className="mb-3 flex items-center justify-between">
             <span className="flex items-center gap-2 font-semibold"><Shield className="h-4 w-4 text-gold" />Administration</span>
             <button onClick={() => setOpen(false)} aria-label="Fermer"><X className="h-4 w-4" /></button>

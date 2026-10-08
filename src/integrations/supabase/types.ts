@@ -196,6 +196,8 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_list_accounts: { Args: never; Returns: Json }
+      admin_reset_user: { Args: { p_user_id: string }; Returns: undefined }
       admin_set_paper_cash: {
         Args: { p_cash: number; p_user_id: string }
         Returns: undefined
@@ -204,6 +206,7 @@ export type Database = {
         Args: { p_price: number; p_ticker: string }
         Returns: undefined
       }
+      admin_user_transactions: { Args: { p_user_id: string }; Returns: Json }
       execute_paper_trade: {
         Args: {
           p_client_price?: number

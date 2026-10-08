@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { isSupabaseConfigured, supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 
 export type LocalSession = Session;
@@ -44,7 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const uid = session?.user.id;
   useEffect(() => {
-    if (!uid) { setIsAdmin(false); return; }
+    if (!uid || !isSupabaseConfigured()) { setIsAdmin(false); return; }
     let alive = true;
     supabase.from("user_roles").select("role").eq("user_id", uid).eq("role", "admin").maybeSingle()
       .then(({ data }) => { if (alive) setIsAdmin(!!data); });
@@ -52,13 +52,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [uid]);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
+    if (!isSupabaseConfigured()) return "Connexion indisponible : Supabase n’est pas configuré.";\n    const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
     return error ? translate(error.message) : null;
   };
 
   const signUp = async (email: string, password: string, name?: string) => {
     if (password.length < 8) return "Le mot de passe doit contenir au moins 8 caractères.";
-    const { data, error } = await supabase.auth.signUp({
+    if (!isSupabaseConfigured()) return "Inscription indisponible : Supabase n’est pas configuré.";\n    const { data, error } = await supabase.auth.signUp({
       email: email.trim().toLowerCase(),
       password,
       options: { emailRedirectTo: window.location.origin + "/profile", data: { name: name?.trim().slice(0, 32) } },
@@ -69,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const sendReset = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+    if (!isSupabaseConfigured()) return "Réinitialisation indisponible : Supabase n’est pas configuré.";\n    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
       redirectTo: window.location.origin + "/reset-password",
     });
     return error ? translate(error.message) : null;
@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updatePassword = async (password: string) => {
     if (password.length < 8) return "Le mot de passe doit contenir au moins 8 caractères.";
-    const { error } = await supabase.auth.updateUser({ password });
+    if (!isSupabaseConfigured()) return "Modification du mot de passe indisponible : Supabase n’est pas configuré.";\n    const { error } = await supabase.auth.updateUser({ password });
     return error ? translate(error.message) : null;
   };
 
@@ -87,7 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return err ? translate(err.message ?? "Connexion Google impossible.") : null;
   };
 
-  const signOut = async () => { await supabase.auth.signOut(); };
+  const signOut = async () => { if (isSupabaseConfigured()) await supabase.auth.signOut(); };
 
   return (
     <Ctx.Provider value={{ session, isAdmin, ready, supabaseConfigured: true, signIn, signUp, sendReset, updatePassword, signInGoogle, signOut }}>

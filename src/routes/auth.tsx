@@ -16,9 +16,10 @@ export const Route = createFileRoute("/auth")({
 });
 
 type Mode = "in" | "up" | "forgot" | "reset";
+void 0;
 
 function AuthPage() {
-  const { session, signIn, signUp, resetPassword } = useAuth();
+  const { session, signIn, signUp, sendReset, signInGoogle } = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>("in");
   const [email, setEmail] = useState("");
@@ -28,43 +29,27 @@ function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    if (session && mode !== "reset") navigate({ to: "/profile" });
-  }, [session, mode, navigate]);
+    if (session) navigate({ to: "/profile" });
+  }, [session, navigate]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     setBusy(true);
     setMsg(null);
-
     try {
       if (mode === "forgot") {
-        setMsg({ ok: true, text: "Mode local : passe à l'étape suivante pour définir un nouveau mot de passe." });
-        setMode("reset");
+        const error = await sendReset(email);
+        setMsg(error ? { ok: false, text: error } : { ok: true, text: "Si un compte existe, un lien de réinitialisation vient d'être envoyé par e-mail." });
         return;
       }
-
-      if (mode === "reset") {
-        const error = await resetPassword(email, password);
-        if (error) {
-          setMsg({ ok: false, text: error });
-          return;
-        }
-        setMsg({ ok: true, text: "Mot de passe modifié. Ton compte est prêt." });
-        setPassword("");
-        setTimeout(() => navigate({ to: "/profile" }), 500);
+      if (mode === "up") {
+        const error = await signUp(email, password, email.trim().split("@")[0]);
+        if (error) setMsg({ ok: false, text: error });
+        else { setMsg({ ok: true, text: "Compte créé ! Clique sur le lien de confirmation reçu par e-mail, puis connecte-toi." }); setPassword(""); setMode("in"); }
         return;
       }
-
-      const error = mode === "in"
-        ? await signIn(email, password)
-        : await signUp(email, password, email.trim().split("@")[0]);
-
-      if (error) {
-        setMsg({ ok: false, text: error });
-      } else {
-        setMsg({ ok: true, text: mode === "up" ? "Compte créé. Bienvenue sur NEXUS MARKETS." : "Connexion réussie." });
-        setTimeout(() => navigate({ to: "/profile" }), 250);
-      }
+      const error = await signIn(email, password);
+      setMsg(error ? { ok: false, text: error } : { ok: true, text: "Connexion réussie." });
     } catch (error) {
       setMsg({ ok: false, text: error instanceof Error ? error.message : "Connexion impossible." });
     } finally {
@@ -76,10 +61,10 @@ function AuthPage() {
   const subtitle = mode === "up"
     ? "Crée ton identité de trader et conserve ton portefeuille."
     : mode === "forgot"
-      ? "Entre ton e-mail pour récupérer ton compte sur cet appareil."
+      ? "Entre ton e-mail pour recevoir un lien de réinitialisation."
       : mode === "reset"
         ? "Choisis un nouveau mot de passe pour sécuriser ton compte."
-        : "Connecte-toi pour retrouver ton portefeuille sur cet appareil.";
+        : "Connecte-toi pour retrouver ton portefeuille.";
 
   return (
     <div className="relative min-h-[calc(100vh-2rem)] overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/50 p-4 shadow-2xl backdrop-blur-2xl md:p-8">
@@ -93,9 +78,9 @@ function AuthPage() {
           <h1 className="max-w-xl text-6xl font-semibold tracking-tight text-white">Ton marché.<br /><span className="text-primary">Ton identité.</span></h1>
           <p className="mt-6 max-w-lg text-base leading-7 text-white/55">Connecte ton compte pour conserver ton portefeuille, tes transactions et toute la personnalisation de ton profil.</p>
           <div className="mt-8 grid max-w-lg grid-cols-3 gap-3">
-            <Trust icon={<ShieldCheck />} title="Sécurisé" text="Session locale" />
+            <Trust icon={<ShieldCheck />} title="Sécurisé" text="Compte en ligne" />
             <Trust icon={<LockKeyhole />} title="Fictif" text="0 € réel" />
-            <Trust icon={<Sparkles />} title="Persistant" text="Sur cet appareil" />
+            <Trust icon={<Sparkles />} title="Persistant" text="Sauvegardé" />
           </div>
         </div>
 
@@ -150,7 +135,7 @@ function AuthPage() {
           {mode !== "forgot" && mode !== "reset" && (
             <>
               <div className="my-5 flex items-center gap-3"><div className="h-px flex-1 bg-white/10" /><span className="text-[10px] text-white/30">OU</span><div className="h-px flex-1 bg-white/10" /></div>
-              <button type="button" onClick={() => { setMsg({ ok: true, text: "La connexion Google sera ajoutée lorsque l'authentification en ligne sera configurée." }); }} className="flex w-full items-center justify-center gap-3 rounded-xl border border-white/10 bg-white/5 py-3 text-sm font-medium text-white/80 transition hover:bg-white/10">
+              <button type="button" onClick={async () => { setMsg(null); const err = await signInGoogle(); if (err) setMsg({ ok: false, text: err }); }} className="flex w-full items-center justify-center gap-3 rounded-xl border border-white/10 bg-white/5 py-3 text-sm font-medium text-white/80 transition hover:bg-white/10">
                 <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-[11px] font-bold text-slate-900">G</span>
                 Continuer avec Google
               </button>

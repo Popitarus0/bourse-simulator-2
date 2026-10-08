@@ -1,6 +1,6 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Star } from "lucide-react";
+import { Star, Download, Keyboard } from "lucide-react";
 import { AppShell, Delta } from "@/components/AppShell";
 import { AreaChart } from "@/components/charts";
 import { useMarket } from "@/lib/store";
@@ -31,7 +31,7 @@ const RANGES = [{ l: "1H", n: 40 }, { l: "4H", n: 100 }, { l: "MAX", n: 160 }];
 
 function StockPage() {
   const { ticker } = Route.useParams();
-  const { byTicker, account, toggleWatch, news, cancelOrder } = useMarket();
+  const { byTicker, account, toggleWatch, news, cancelOrder, trade } = useMarket();
   const s = byTicker(ticker)!;
   const [range, setRange] = useState(1);
   const data = s.history.slice(-RANGES[range].n);
@@ -41,6 +41,12 @@ function StockPage() {
   const sma20 = useMemo(() => average(data.slice(-20)), [data]);
   const sma50 = useMemo(() => average(data.slice(-50)), [data]);
   const rsi = useMemo(() => calculateRsi(data), [data]);
+  const orderBook = useMemo(() => buildOrderBook(s.price, s.volume), [s.price, s.volume]);
+  const calendar = useMemo(() => [
+    { title: "Publication des résultats trimestriels", time: "Demain · 09:00", impact: "Élevé" },
+    { title: "Décision de la Banque Centrale NX", time: "Dans 3 jours · 14:00", impact: "Très élevé" },
+    { title: "Indice industriel fictif", time: "Dans 5 jours · 11:30", impact: "Moyen" },
+  ], []);
 
   return (
     <AppShell>
@@ -196,6 +202,17 @@ function OrderTicket({ ticker }: { ticker: string }) {
   );
 }
 
+function buildOrderBook(price: number, volume: number) {
+  const seed = Math.max(10, Math.round(volume / 50000));
+  const levels = Array.from({ length: 6 }, (_, i) => i + 1);
+  return {
+    bids: levels.map((i) => ({ price: +(price * (1 - i * 0.0015)).toFixed(2), qty: seed + Math.round(Math.random() * seed * 2) })),
+    asks: levels.map((i) => ({ price: +(price * (1 + i * 0.0015)).toFixed(2), qty: seed + Math.round(Math.random() * seed * 2) })),
+  };
+}
+function BookColumn({ title, rows, tone }: { title: string; rows: Array<{price:number;qty:number}>; tone: "up"|"down" }) {
+  return <div><div className={tone === "up" ? "mb-2 text-[10px] text-up" : "mb-2 text-[10px] text-down"}>{title}</div>{rows.map((r) => <div key={r.price} className="flex justify-between border-b border-white/5 py-1.5 text-xs"><span className="num">{r.price.toFixed(2)}</span><span className="num text-muted-foreground">{r.qty}</span></div>)}</div>;
+}
 function average(values: number[]) { return values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0; }
 function calculateRsi(values: number[]) {
   if (values.length < 2) return 50;

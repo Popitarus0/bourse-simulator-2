@@ -37,8 +37,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    if (!isSupabaseConfigured()) {
+      setSession(null);
+      setIsAdmin(false);
+      setReady(true);
+      return;
+    }
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
-    supabase.auth.getSession().then(({ data }) => { setSession(data.session); setReady(true); });
+    supabase.auth.getSession()
+      .then(({ data }) => { setSession(data.session); setReady(true); })
+      .catch(() => setReady(true));
     return () => sub.subscription.unsubscribe();
   }, []);
 
@@ -52,13 +60,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [uid]);
 
   const signIn = async (email: string, password: string) => {
-    if (!isSupabaseConfigured()) return "Connexion indisponible : Supabase n’est pas configuré.";\n    const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
+    if (!isSupabaseConfigured()) return "Connexion indisponible : Supabase n’est pas configuré.";
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
     return error ? translate(error.message) : null;
   };
 
   const signUp = async (email: string, password: string, name?: string) => {
     if (password.length < 8) return "Le mot de passe doit contenir au moins 8 caractères.";
-    if (!isSupabaseConfigured()) return "Inscription indisponible : Supabase n’est pas configuré.";\n    const { data, error } = await supabase.auth.signUp({
+    if (!isSupabaseConfigured()) return "Inscription indisponible : Supabase n’est pas configuré.";
+    const { data, error } = await supabase.auth.signUp({
       email: email.trim().toLowerCase(),
       password,
       options: { emailRedirectTo: window.location.origin + "/profile", data: { name: name?.trim().slice(0, 32) } },
@@ -69,7 +79,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const sendReset = async (email: string) => {
-    if (!isSupabaseConfigured()) return "Réinitialisation indisponible : Supabase n’est pas configuré.";\n    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+    if (!isSupabaseConfigured()) return "Réinitialisation indisponible : Supabase n’est pas configuré.";
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
       redirectTo: window.location.origin + "/reset-password",
     });
     return error ? translate(error.message) : null;
@@ -77,11 +88,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updatePassword = async (password: string) => {
     if (password.length < 8) return "Le mot de passe doit contenir au moins 8 caractères.";
-    if (!isSupabaseConfigured()) return "Modification du mot de passe indisponible : Supabase n’est pas configuré.";\n    const { error } = await supabase.auth.updateUser({ password });
+    if (!isSupabaseConfigured()) return "Modification du mot de passe indisponible : Supabase n’est pas configuré.";
+    const { error } = await supabase.auth.updateUser({ password });
     return error ? translate(error.message) : null;
   };
 
   const signInGoogle = async () => {
+    if (!isSupabaseConfigured()) return "Connexion Google indisponible : Supabase n’est pas configuré.";
     const res = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin + "/auth" });
     const err = (res as { error?: { message?: string } } | undefined)?.error;
     return err ? translate(err.message ?? "Connexion Google impossible.") : null;
@@ -90,7 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => { if (isSupabaseConfigured()) await supabase.auth.signOut(); };
 
   return (
-    <Ctx.Provider value={{ session, isAdmin, ready, supabaseConfigured: true, signIn, signUp, sendReset, updatePassword, signInGoogle, signOut }}>
+    <Ctx.Provider value={{ session, isAdmin, ready, supabaseConfigured: isSupabaseConfigured(), signIn, signUp, sendReset, updatePassword, signInGoogle, signOut }}>
       {children}
     </Ctx.Provider>
   );

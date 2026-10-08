@@ -9,6 +9,7 @@ export interface Holding { qty: number; avg: number }
 export interface Tx { id: string; ticker: string; side: "buy" | "sell"; qty: number; price: number; time: number }
 
 export interface PendingOrder { id: string; ticker: string; side: "buy" | "sell"; type: "limit" | "stop"; qty: number; trigger: number; createdAt: number }
+export interface AdminTrader { id: string; name: string; email?: string; cash: number; holdings: Record<string, Holding>; txs: Tx[]; value: number; joined?: number }
 interface Account { cash: number; holdings: Record<string, Holding>; txs: Tx[]; watchlist: string[]; pendingOrders: PendingOrder[] }
 
 interface Ctx {
@@ -30,6 +31,9 @@ interface Ctx {
   cancelOrder: (id: string) => void;
   profile: Profile;
   setProfile: (p: Partial<Profile>) => void;
+  adminTraders: AdminTrader[];
+  refreshAdminTraders: () => Promise<void>;
+  resetAdminTrader: (userId: string) => Promise<string | null>;
 }
 export interface AdminSettings { speed: number; volatility: number; trend: number; paused: boolean; newsRate: number }
 export type ProfileAccent = "blue" | "violet" | "cyan" | "green" | "gold";
@@ -465,6 +469,62 @@ export function MarketProvider({ children }: { children: ReactNode }) {
 
   const portfolioValue = account.cash + Object.entries(account.holdings).reduce((sum, [t, h]) => sum + (byTicker(t)?.price ?? 0) * h.qty, 0);
 
+  const [adminTraders, setAdminTraders] = useState<AdminTrader[]>([]);
+  const refreshAdminTraders = async () => {
+    if (!isAdmin) return;
+    if (!isSupabaseConfigured()) {
+      try {
+        const raw = localStorage.getItem("nexus_local_accounts_v1");
+        const accounts = raw ? JSON.parse(raw) as Array<{ id: string; email: string; name?: string }> : [];
+        setAdminTraders(accounts.map((u) => {
+          const a = parseAccount(localStorage.getItem(ACCOUNT_PREFIX + u.id)) ?? freshAccount();
+          const value = a.cash + Object.entries(a.holdings).reduce((sum, [t, h]) => sum + (byTicker(t)?.price ?? 0) * h.qty, 0);
+          return { id: u.id, name: u.name || u.email.split("@")[0] || "Trader", email: u.email, cash: a.cash, holdings: a.holdings, txs: a.txs, value };
+        }));
+      } catch { setAdminTraders([]); }
+      return;
+    }
+    try {
+      const [{ data: profiles, error: pe }, { data: accounts, error: ae }] = await Promise.all([
+        supabase.from("profiles").select("id,name,created_at"),
+        supabase.from("paper_accounts").select("user_id,cash"),
+      ]);
+      if (pe || ae) throw pe ?? ae;
+      const ids = (accounts ?? []).map((a) => a.user_id).filter(Boolean);
+      const [{ data: holdings }, { data: txs }] = await Promise.all([
+        ids.length ? supabase.from("paper_holdings").select("user_id,ticker,qty,avg_price").in("user_id", ids) : Promise.resolve({ data: [] } as never),
+        ids.length ? supabase.from("paper_transactions").select("id,user_id,ticker,side,qty,price,created_at").in("user_id", ids).order("created_at", { ascending: false }).limit(5000) : Promise.resolve({ data: [] } as never),
+      ]);
+      const profileMap = new Map((profiles ?? []).map((p) => [p.id, p]));
+      setAdminTraders((accounts ?? []).map((a) => {
+        const holdingsMap: Record<string, Holding> = {};
+        for (const x of holdings ?? []) if (x.user_id === a.user_id && Number.isInteger(Number(x.qty)) && Number(x.qty) > 0) holdingsMap[x.ticker] = { qty: Number(x.qty), avg: Number(x.avg_price) };
+        const userTxs = (txs ?? []).filter((x) => x.user_id === a.user_id).map((x) => ({ id: x.id, ticker: x.ticker, side: x.side as "buy" | "sell", qty: Number(x.qty), price: Number(x.price), time: new Date(x.created_at).getTime() }));
+        const p = profileMap.get(a.user_id);
+        const value = Number(a.cash) + Object.entries(holdingsMap).reduce((sum, [t, h]) => sum + (byTicker(t)?.price ?? 0) * h.qty, 0);
+        return { id: a.user_id, name: p?.name || "Trader", cash: Number(a.cash) || 0, holdings: holdingsMap, txs: userTxs, value, joined: p?.created_at ? new Date(p.created_at).getTime() : undefined };
+      }));
+    } catch (e) { console.error("[Admin] Users load failed:", e); setAdminTraders([]); }
+  };
+  const resetAdminTrader = async (userId: string) => {
+    if (!isAdmin) return "Accès refusé";
+    if (!isSupabaseConfigured()) {
+      localStorage.setItem(ACCOUNT_PREFIX + userId, JSON.stringify(freshAccount()));
+      await refreshAdminTraders();
+      return null;
+    }
+    try {
+      const [t, h, a] = await Promise.all([
+        supabase.from("paper_transactions").delete().eq("user_id", userId),
+        supabase.from("paper_holdings").delete().eq("user_id", userId),
+        supabase.from("paper_accounts").update({ cash: START_CASH }).eq("user_id", userId),
+      ]);
+      if (t.error || h.error || a.error) return "Réinitialisation refusée par la base";
+      await refreshAdminTraders();
+      return null;
+    } catch { return "Réinitialisation impossible"; }
+  };
+
   return (
     <MarketCtx.Provider value={{ stocks, news, players, account, byTicker, trade, toggleWatch, portfolioValue, reset: () => {
       if (uid && isSupabaseConfigured()) {
@@ -489,7 +549,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
       if (!isAdmin) return;
       setPrice(t, p);
       if (uid && isSupabaseConfigured()) supabase.rpc("admin_set_quote", { p_ticker: t, p_price: p }).then(({ error }) => error && console.error("[Admin] Quote update failed:", error));
-    }, pushNews: (t, i) => isAdmin && pushNews(t, i), placeOrder, cancelOrder, profile, setProfile }}>
+    }, pushNews: (t, i) => isAdmin && pushNews(t, i), placeOrder, cancelOrder, profile, setProfile, adminTraders, refreshAdminTraders, resetAdminTrader }}>
       {children}
     </MarketCtx.Provider>
   );

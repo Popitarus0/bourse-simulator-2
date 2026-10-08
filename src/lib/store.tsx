@@ -305,10 +305,12 @@ export function MarketProvider({ children }: { children: ReactNode }) {
   };
 
   const setAdmin = (a: Partial<AdminSettings>) => {
-    if (!isAdmin || !isSupabaseConfigured()) return;
+    if (!isAdmin) return;
     setAdminState((prev) => {
       const n = { ...prev, ...a };
-      supabase.from("market_settings").update({ speed: n.speed, volatility: n.volatility, trend: n.trend, news_rate: n.newsRate, paused: n.paused, updated_at: new Date().toISOString() }).eq("id", 1).then(() => {});
+      if (isSupabaseConfigured()) {
+        supabase.from("market_settings").update({ speed: n.speed, volatility: n.volatility, trend: n.trend, news_rate: n.newsRate, paused: n.paused, updated_at: new Date().toISOString() }).eq("id", 1).then(() => {});
+      }
       return n;
     });
   };

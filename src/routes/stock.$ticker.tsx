@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Star, Download, Keyboard } from "lucide-react";
 import { AppShell, Delta } from "@/components/AppShell";
 import { AreaChart } from "@/components/charts";

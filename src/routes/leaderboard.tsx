@@ -40,6 +40,7 @@ function Leaderboard() {
           </div>
         ))}
         </div>
+        </div>
       </div>
     </AppShell>
   );

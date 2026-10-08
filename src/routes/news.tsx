@@ -35,6 +35,7 @@ function News() {
           </article>
         ))}
         </div>
+        </div>
       </div>
     </AppShell>
   );

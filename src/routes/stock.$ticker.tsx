@@ -169,6 +169,15 @@ function OrderTicket({ ticker }: { ticker: string }) {
       <div className="mt-4 grid grid-cols-3 rounded-md bg-muted p-1 text-xs">
         {(["market", "limit", "stop"] as const).map((m) => <button key={m} onClick={() => setMode(m)} className={`rounded py-1.5 ${mode === m ? "bg-background font-medium" : "text-muted-foreground"}`}>{m === "market" ? "Marché" : m === "limit" ? "Limite" : "Stop"}</button>)}
       </div>
+      {mode !== "market" && (
+        <label className="mt-4 block text-xs text-muted-foreground">
+          Prix de déclenchement
+          <div className="mt-1 flex gap-2">
+            <input type="number" min={0.01} step={0.01} value={trigger} onChange={(e) => setTrigger(Math.max(0.01, +e.target.value))} className="num w-full rounded-md border bg-background px-3 py-2 outline-none focus:border-primary" />
+            <button onClick={() => setTrigger(s.price)} className="rounded-md border px-3 text-xs hover:bg-accent">Cours</button>
+          </div>
+        </label>
+      )}
       <label className="mt-4 block text-xs text-muted-foreground">Quantité</label>
       <div className="mt-1 flex gap-2">
         <input type="number" min={1} value={qty} onChange={(e) => setQty(Math.max(0, Math.floor(+e.target.value)))} className="num w-full rounded-md border bg-background px-3 py-2 outline-none focus:border-primary" />

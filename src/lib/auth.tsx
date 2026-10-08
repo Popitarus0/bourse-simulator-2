@@ -5,6 +5,15 @@ import { lovable } from "@/integrations/lovable";
 
 export type LocalSession = Session;
 
+const LOCAL_ACCOUNTS_KEY = "nexus_local_accounts_v1";
+const LOCAL_SESSION_KEY = "nexus_local_session_v1";
+const LOCAL_ADMIN_EMAIL = "claudelisscfj@gmail.com";
+type LocalAccount = { id: string; email: string; passwordHash: string; name: string; createdAt: string; isAdmin: boolean };
+function readLocalAccounts(): LocalAccount[] { try { const raw = localStorage.getItem(LOCAL_ACCOUNTS_KEY); return raw ? JSON.parse(raw) : []; } catch { return []; } }
+function writeLocalAccounts(accounts: LocalAccount[]) { localStorage.setItem(LOCAL_ACCOUNTS_KEY, JSON.stringify(accounts)); }
+async function hashPassword(value: string) { const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)); return Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, "0")).join(""); }
+function localSession(account: LocalAccount): Session { return { user: { id: account.id, email: account.email, user_metadata: { name: account.name }, app_metadata: { provider: "local" }, aud: "authenticated", role: "authenticated" } } as unknown as Session; }
+
 interface AuthCtx {
   session: Session | null;
   isAdmin: boolean;
@@ -38,8 +47,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isSupabaseConfigured()) {
-      setSession(null);
-      setIsAdmin(false);
+      const email = localStorage.getItem(LOCAL_SESSION_KEY);
+      const account = email ? readLocalAccounts().find((a) => a.email === email) : null;
+      if (account) { setSession(localSession(account)); setIsAdmin(account.isAdmin); }
       setReady(true);
       return;
     }
@@ -60,14 +70,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [uid]);
 
   const signIn = async (email: string, password: string) => {
-    if (!isSupabaseConfigured()) return "Connexion indisponible : Supabase n’est pas configuré.";
+    if (!isSupabaseConfigured()) {
+      const normalized = email.trim().toLowerCase();
+      const account = readLocalAccounts().find((a) => a.email === normalized);
+      if (!account || account.passwordHash !== await hashPassword(password)) return "E-mail ou mot de passe incorrect.";
+      localStorage.setItem(LOCAL_SESSION_KEY, normalized); setSession(localSession(account)); setIsAdmin(account.isAdmin); return null;
+    }
     const { error } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
     return error ? translate(error.message) : null;
   };
 
   const signUp = async (email: string, password: string, name?: string) => {
     if (password.length < 8) return "Le mot de passe doit contenir au moins 8 caractères.";
-    if (!isSupabaseConfigured()) return "Inscription indisponible : Supabase n’est pas configuré.";
+    if (!isSupabaseConfigured()) {
+      const normalized = email.trim().toLowerCase(); const accounts = readLocalAccounts();
+      if (accounts.some((a) => a.email === normalized)) return "Un compte existe déjà avec cette adresse.";
+      const account: LocalAccount = { id: "local-" + crypto.randomUUID(), email: normalized, passwordHash: await hashPassword(password), name: name?.trim().slice(0, 32) || normalized.split("@")[0], createdAt: new Date().toISOString(), isAdmin: normalized === LOCAL_ADMIN_EMAIL };
+      writeLocalAccounts([...accounts, account]); localStorage.setItem(LOCAL_SESSION_KEY, normalized); setSession(localSession(account)); setIsAdmin(account.isAdmin); return null;
+    }
     const { data, error } = await supabase.auth.signUp({
       email: email.trim().toLowerCase(),
       password,
@@ -79,7 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const sendReset = async (email: string) => {
-    if (!isSupabaseConfigured()) return "Réinitialisation indisponible : Supabase n’est pas configuré.";
+    if (!isSupabaseConfigured()) return "En mode navigateur, la récupération par e-mail n’est pas disponible. Utilise ton compte local.";
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
       redirectTo: window.location.origin + "/reset-password",
     });
@@ -88,19 +108,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updatePassword = async (password: string) => {
     if (password.length < 8) return "Le mot de passe doit contenir au moins 8 caractères.";
-    if (!isSupabaseConfigured()) return "Modification du mot de passe indisponible : Supabase n’est pas configuré.";
+    if (!isSupabaseConfigured()) {
+      const email = localStorage.getItem(LOCAL_SESSION_KEY); if (!email) return "Aucun compte local connecté.";
+      const nextAccounts = await Promise.all(readLocalAccounts().map(async (a) => a.email === email ? { ...a, passwordHash: await hashPassword(password) } : a)); writeLocalAccounts(nextAccounts); return null;
+    }
     const { error } = await supabase.auth.updateUser({ password });
     return error ? translate(error.message) : null;
   };
 
   const signInGoogle = async () => {
-    if (!isSupabaseConfigured()) return "Connexion Google indisponible : Supabase n’est pas configuré.";
+    if (!isSupabaseConfigured()) return "Google nécessite Supabase. Le mode navigateur utilise e-mail + mot de passe.";
     const res = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin + "/auth" });
     const err = (res as { error?: { message?: string } } | undefined)?.error;
     return err ? translate(err.message ?? "Connexion Google impossible.") : null;
   };
 
-  const signOut = async () => { if (isSupabaseConfigured()) await supabase.auth.signOut(); };
+  const signOut = async () => { if (isSupabaseConfigured()) await supabase.auth.signOut(); else { localStorage.removeItem(LOCAL_SESSION_KEY); setSession(null); setIsAdmin(false); } };
 
   return (
     <Ctx.Provider value={{ session, isAdmin, ready, supabaseConfigured: isSupabaseConfigured(), signIn, signUp, sendReset, updatePassword, signInGoogle, signOut }}>

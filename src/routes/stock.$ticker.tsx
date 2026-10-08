@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Star } from "lucide-react";
 import { AppShell, Delta } from "@/components/AppShell";
 import { AreaChart } from "@/components/charts";
@@ -31,13 +31,16 @@ const RANGES = [{ l: "1H", n: 40 }, { l: "4H", n: 100 }, { l: "MAX", n: 160 }];
 
 function StockPage() {
   const { ticker } = Route.useParams();
-  const { byTicker, account, toggleWatch, news } = useMarket();
+  const { byTicker, account, toggleWatch, news, cancelOrder } = useMarket();
   const s = byTicker(ticker)!;
   const [range, setRange] = useState(1);
   const data = s.history.slice(-RANGES[range].n);
   const hi = Math.max(...s.history), lo = Math.min(...s.history);
   const h = account.holdings[ticker];
   const related = news.filter((n) => n.ticker === ticker).slice(0, 5);
+  const sma20 = useMemo(() => average(data.slice(-20)), [data]);
+  const sma50 = useMemo(() => average(data.slice(-50)), [data]);
+  const rsi = useMemo(() => calculateRsi(data), [data]);
 
   return (
     <AppShell>
@@ -66,6 +69,11 @@ function StockPage() {
               ))}
             </div>
             <div className="mt-2"><AreaChart data={data} /></div>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              <Indicator label="SMA 20" value={fmt(sma20)} />
+              <Indicator label="SMA 50" value={fmt(sma50)} />
+              <Indicator label="RSI 14" value={rsi.toFixed(1)} tone={rsi >= 70 ? "down" : rsi <= 30 ? "up" : undefined} />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
             {[
@@ -87,6 +95,20 @@ function StockPage() {
         </div>
         <div className="space-y-4">
           <OrderTicket ticker={ticker} />
+          {account.pendingOrders.filter((o) => o.ticker === ticker).length > 0 && (
+            <div className="panel p-4">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground">Ordres en attente</div>
+              <div className="mt-3 space-y-2">
+                {account.pendingOrders.filter((o) => o.ticker === ticker).map((o) => (
+                  <div key={o.id} className="flex items-center gap-2 rounded-lg border bg-background/30 p-2 text-xs">
+                    <span className={o.side === "buy" ? "text-up" : "text-down"}>{o.side === "buy" ? "ACHAT" : "VENTE"}</span>
+                    <span className="flex-1">{o.type === "limit" ? "Limite" : "Stop"} · {o.qty} · {fmt(o.trigger)} NX$</span>
+                    <button onClick={() => cancelOrder(o.id)} className="text-muted-foreground hover:text-foreground">Annuler</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="panel p-4 text-sm">
             <div className="text-xs uppercase tracking-wider text-muted-foreground">Votre position</div>
             {h ? (
@@ -108,13 +130,15 @@ function StockPage() {
 const Row = ({ k, v }: { k: string; v: string }) => <div className="flex justify-between"><span className="text-muted-foreground">{k}</span><span className="num">{v}</span></div>;
 
 function OrderTicket({ ticker }: { ticker: string }) {
-  const { byTicker, trade, account } = useMarket();
+  const { byTicker, trade, account, placeOrder } = useMarket();
   const s = byTicker(ticker)!;
   const [side, setSide] = useState<"buy" | "sell">("buy");
+  const [mode, setMode] = useState<"market" | "limit" | "stop">("market");
+  const [trigger, setTrigger] = useState(s.price);
   const [qty, setQty] = useState(10);
   const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
   const [busy, setBusy] = useState(false);
-  const total = qty * s.price;
+  const total = qty * (mode === "market" ? s.price : trigger);
   const max = side === "buy" ? Math.floor(account.cash / s.price) : account.holdings[ticker]?.qty ?? 0;
 
   const submit = async () => {
@@ -122,6 +146,11 @@ function OrderTicket({ ticker }: { ticker: string }) {
     setBusy(true);
     setMsg(null);
     try {
+      if (mode !== "market") {
+        const err = placeOrder({ ticker, side, type: mode, qty, trigger });
+        setMsg(err ? { ok: false, t: err } : { ok: true, t: `${mode === "limit" ? "Ordre limite" : "Stop"} placé à ${fmt(trigger)} NX$.` });
+        return;
+      }
       const err = await trade(ticker, side, qty);
       setMsg(err
         ? { ok: false, t: err }
@@ -137,7 +166,10 @@ function OrderTicket({ ticker }: { ticker: string }) {
         <button onClick={() => setSide("buy")} className={`rounded py-1.5 font-medium ${side === "buy" ? "bg-up text-background" : "text-muted-foreground"}`}>Acheter</button>
         <button onClick={() => setSide("sell")} className={`rounded py-1.5 font-medium ${side === "sell" ? "bg-down text-background" : "text-muted-foreground"}`}>Vendre</button>
       </div>
-      <label className="mt-4 block text-xs text-muted-foreground">Quantité (ordre au marché)</label>
+      <div className="mt-4 grid grid-cols-3 rounded-md bg-muted p-1 text-xs">
+        {(["market", "limit", "stop"] as const).map((m) => <button key={m} onClick={() => setMode(m)} className={`rounded py-1.5 ${mode === m ? "bg-background font-medium" : "text-muted-foreground"}`}>{m === "market" ? "Marché" : m === "limit" ? "Limite" : "Stop"}</button>)}
+      </div>
+      <label className="mt-4 block text-xs text-muted-foreground">Quantité</label>
       <div className="mt-1 flex gap-2">
         <input type="number" min={1} value={qty} onChange={(e) => setQty(Math.max(0, Math.floor(+e.target.value)))} className="num w-full rounded-md border bg-background px-3 py-2 outline-none focus:border-primary" />
         <button onClick={() => setQty(max)} className="rounded-md border px-3 text-xs hover:bg-accent">Max</button>
@@ -153,4 +185,17 @@ function OrderTicket({ ticker }: { ticker: string }) {
       {msg && <p className={`mt-3 text-xs ${msg.ok ? "text-up" : "text-down"}`}>{msg.t}</p>}
     </div>
   );
+}
+
+function average(values: number[]) { return values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0; }
+function calculateRsi(values: number[]) {
+  if (values.length < 2) return 50;
+  const slice = values.slice(-15);
+  let gains = 0, losses = 0;
+  for (let i = 1; i < slice.length; i++) { const d = slice[i] - slice[i - 1]; if (d >= 0) gains += d; else losses -= d; }
+  if (losses === 0) return 100;
+  return 100 - 100 / (1 + gains / losses);
+}
+function Indicator({ label, value, tone }: { label: string; value: string; tone?: "up" | "down" }) {
+  return <div className="rounded-lg border bg-background/30 p-2"><div className="text-[9px] uppercase text-muted-foreground">{label}</div><div className={`num mt-1 text-xs ${tone === "up" ? "text-up" : tone === "down" ? "text-down" : ""}`}>{value}</div></div>;
 }

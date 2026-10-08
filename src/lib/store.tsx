@@ -8,7 +8,8 @@ export const START_CASH = 100000;
 export interface Holding { qty: number; avg: number }
 export interface Tx { id: string; ticker: string; side: "buy" | "sell"; qty: number; price: number; time: number }
 
-interface Account { cash: number; holdings: Record<string, Holding>; txs: Tx[]; watchlist: string[] }
+export interface PendingOrder { id: string; ticker: string; side: "buy" | "sell"; type: "limit" | "stop"; qty: number; trigger: number; createdAt: number }
+interface Account { cash: number; holdings: Record<string, Holding>; txs: Tx[]; watchlist: string[]; pendingOrders: PendingOrder[] }
 
 interface Ctx {
   stocks: Stock[];
@@ -25,6 +26,8 @@ interface Ctx {
   setCash: (v: number) => void;
   setPrice: (ticker: string, price: number) => void;
   pushNews: (ticker: string, impact: number) => void;
+  placeOrder: (order: Omit<PendingOrder, "id" | "createdAt">) => string | null;
+  cancelOrder: (id: string) => void;
   profile: Profile;
   setProfile: (p: Partial<Profile>) => void;
 }
@@ -47,7 +50,7 @@ export interface Profile {
 const MarketCtx = createContext<Ctx | null>(null);
 const ACCOUNT_PREFIX = "nexus-account-v1:";
 const PROFILE_PREFIX = "nexus-profile-v2:";
-const freshAccount = (): Account => ({ cash: START_CASH, holdings: {}, txs: [], watchlist: ["NXQ", "ORBT", "FUSN"] });
+const freshAccount = (): Account => ({ cash: START_CASH, holdings: {}, txs: [], watchlist: ["NXQ", "ORBT", "FUSN"], pendingOrders: [] });
 function parseProfile(raw: string | null): Profile | null {
   if (!raw) return null;
   try {
@@ -100,6 +103,7 @@ function parseAccount(raw: string | null): Account | null {
       holdings,
       txs,
       watchlist: value.watchlist.filter((x): x is string => typeof x === "string").slice(0, 50),
+      pendingOrders: Array.isArray(value.pendingOrders) ? value.pendingOrders.filter((o): o is PendingOrder => !!o && typeof o === "object" && typeof (o as PendingOrder).id === "string" && typeof (o as PendingOrder).ticker === "string" && ["buy","sell"].includes((o as PendingOrder).side) && ["limit","stop"].includes((o as PendingOrder).type) && Number.isInteger((o as PendingOrder).qty) && (o as PendingOrder).qty > 0 && Number.isFinite((o as PendingOrder).trigger)).slice(0, 100) : [],
     };
   } catch { return null; }
 }
@@ -177,6 +181,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
           holdings,
           txs,
           watchlist: parseAccount(localStorage.getItem(storageKey))?.watchlist ?? ["NXQ", "ORBT", "FUSN"],
+          pendingOrders: parseAccount(localStorage.getItem(storageKey))?.pendingOrders ?? [],
         });
         const serverProfile = parseProfile(localStorage.getItem(profileStorageKey));
         if (serverProfile) setProfileState(serverProfile);
@@ -329,6 +334,19 @@ export function MarketProvider({ children }: { children: ReactNode }) {
         }),
       );
       pending = null;
+      const currentStocks = stocksRef.current;
+      setAccount((a) => {
+        const triggered = a.pendingOrders.filter((o) => {
+          const s = currentStocks.find((x) => x.ticker === o.ticker);
+          if (!s) return false;
+          const hit = o.type === "limit"
+            ? (o.side === "buy" ? s.price <= o.trigger : s.price >= o.trigger)
+            : (o.side === "buy" ? s.price >= o.trigger : s.price <= o.trigger);
+          if (hit) void trade(o.ticker, o.side, o.qty);
+          return !hit;
+        });
+        return triggered.length === a.pendingOrders.length ? a : { ...a, pendingOrders: triggered };
+      });
       setPlayers((prev) => prev.map((p) => ({ ...p, value: Math.max(10000, Math.round(p.value * (1 + gauss() * 0.004 + 0.0002))) })));
     }, 1600 / admin.speed);
     return () => clearInterval(id);
@@ -436,6 +454,13 @@ export function MarketProvider({ children }: { children: ReactNode }) {
     setNews((prev) => [item, ...prev].slice(0, 60));
     if (s) setPrice(ticker, +(s.price * (1 + impact)).toFixed(2));
   };
+  const placeOrder = (order: Omit<PendingOrder, "id" | "createdAt">) => {
+    if (!Number.isInteger(order.qty) || order.qty <= 0 || !Number.isFinite(order.trigger) || order.trigger <= 0 || !byTicker(order.ticker)) return "Ordre invalide";
+    setAccount((a) => ({ ...a, pendingOrders: [...a.pendingOrders, { ...order, id: crypto.randomUUID(), createdAt: Date.now() }] }));
+    return null;
+  };
+  const cancelOrder = (id: string) => setAccount((a) => ({ ...a, pendingOrders: a.pendingOrders.filter((o) => o.id !== id) }));
+
   const portfolioValue = account.cash + Object.entries(account.holdings).reduce((sum, [t, h]) => sum + (byTicker(t)?.price ?? 0) * h.qty, 0);
 
   return (
@@ -462,7 +487,7 @@ export function MarketProvider({ children }: { children: ReactNode }) {
       if (!isAdmin) return;
       setPrice(t, p);
       if (uid && isSupabaseConfigured()) supabase.rpc("admin_set_quote", { p_ticker: t, p_price: p }).then(({ error }) => error && console.error("[Admin] Quote update failed:", error));
-    }, pushNews: (t, i) => isAdmin && pushNews(t, i), profile, setProfile }}>
+    }, pushNews: (t, i) => isAdmin && pushNews(t, i), placeOrder, cancelOrder, profile, setProfile }}>
       {children}
     </MarketCtx.Provider>
   );

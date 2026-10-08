@@ -62,7 +62,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const uid = session?.user.id;
   useEffect(() => {
-    if (!uid || !isSupabaseConfigured()) { setIsAdmin(false); return; }
+    if (!uid) { setIsAdmin(false); return; }
+    if (!isSupabaseConfigured()) {
+      setIsAdmin(session?.user.email?.trim().toLowerCase() === LOCAL_ADMIN_EMAIL);
+      return;
+    }
     let alive = true;
     supabase.from("user_roles").select("role").eq("user_id", uid).eq("role", "admin").maybeSingle()
       .then(({ data }) => { if (alive) setIsAdmin(!!data); });

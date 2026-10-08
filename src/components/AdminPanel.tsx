@@ -20,7 +20,10 @@ function AdminPanelInner() {
   const [cash, setCash] = useState("");
   const [ticker, setTicker] = useState(m.stocks[0]?.ticker ?? "");
   const [price, setPrice] = useState("");
-  const [tab, setTab] = useState<"overview" | "argent" | "flux" | "bourse" | "news">("overview");
+  const [tab, setTab] = useState<"overview" | "comptes" | "argent" | "flux" | "bourse" | "news">("overview");
+  const [selectedUser, setSelectedUser] = useState<string | null>(null);
+  const [accountMsg, setAccountMsg] = useState("");
+  useEffect(() => { if (open && tab === "comptes") void m.refreshAdminTraders(); }, [open, tab]);
 
   useEffect(() => {
     const move = (e: PointerEvent) => {
@@ -62,10 +65,46 @@ function AdminPanelInner() {
             <button onClick={() => setOpen(false)} aria-label="Fermer"><X className="h-4 w-4" /></button>
           </div>
           <div className="mb-4 grid grid-cols-3 gap-1 rounded-lg bg-background/40 p-1">
-            {(["overview", "argent", "flux", "bourse", "news"] as const).map((t) => (
-              <button key={t} onClick={() => setTab(t)} className={`rounded-md py-1 capitalize ${tab === t ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>{t === "overview" ? "Vue" : t === "news" ? "News" : t}</button>
+            {(["overview", "comptes", "argent", "flux", "bourse", "news"] as const).map((t) => (
+              <button key={t} onClick={() => setTab(t)} className={`rounded-md py-1 capitalize ${tab === t ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>{t === "overview" ? "Vue" : t === "comptes" ? "Comptes" : t === "news" ? "News" : t}</button>
             ))}
           </div>
+
+          {tab === "comptes" && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div><div className="font-medium">Comptes traders</div><div className="text-[10px] text-muted-foreground">{m.adminTraders.length} compte(s) chargé(s)</div></div>
+                <button onClick={() => void m.refreshAdminTraders()} className="rounded-md border px-2 py-1 text-[10px] hover:bg-accent">Actualiser</button>
+              </div>
+              {accountMsg && <div className="rounded-lg border border-primary/20 bg-primary/10 p-2 text-[10px] text-primary">{accountMsg}</div>}
+              <div className="max-h-72 space-y-2 overflow-auto pr-1">
+                {m.adminTraders.map((u) => (
+                  <div key={u.id} className="rounded-xl border border-white/10 bg-white/[.035] p-3">
+                    <button onClick={() => setSelectedUser(selectedUser === u.id ? null : u.id)} className="flex w-full items-center gap-2 text-left">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold">{u.name.slice(0,2).toUpperCase()}</span>
+                      <span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold">{u.name}</span><span className="block truncate text-[9px] text-muted-foreground">{u.email || u.id}</span></span>
+                      <span className="num text-xs">{fmt(u.value,0)} NX$</span>
+                    </button>
+                    {selectedUser === u.id && (
+                      <div className="mt-3 border-t border-white/10 pt-3">
+                        <div className="grid grid-cols-2 gap-2 text-[10px]">
+                          <span>Solde <b className="num">{fmt(u.cash,0)} NX$</b></span>
+                          <span>Positions <b>{Object.keys(u.holdings).length}</b></span>
+                          <span>Transactions <b>{u.txs.length}</b></span>
+                          <span>P&L <b className={u.value >= 100000 ? "text-up" : "text-down"}>{fmt(u.value - 100000,0)} NX$</b></span>
+                        </div>
+                        <div className="mt-2 max-h-24 space-y-1 overflow-auto">
+                          {Object.entries(u.holdings).map(([t,h]) => <div key={t} className="flex justify-between rounded bg-black/20 px-2 py-1 text-[10px]"><span>{t} · {h.qty}</span><span className="num">{fmt(h.avg)}</span></div>)}
+                        </div>
+                        <button onClick={async () => { const ok = window.confirm("Réinitialiser ce compte ?"); if (!ok) return; const err = await m.resetAdminTrader(u.id); setAccountMsg(err ?? "Compte réinitialisé."); }} className="mt-3 w-full rounded-lg border border-destructive/30 py-1.5 text-[10px] text-destructive hover:bg-destructive/10">Réinitialiser le compte</button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {!m.adminTraders.length && <div className="rounded-xl border border-dashed border-white/10 p-6 text-center text-[10px] text-muted-foreground">Aucun compte accessible. En mode Supabase, vérifie les droits RLS/admin de ces tables.</div>}
+              </div>
+            </div>
+          )}
 
           {tab === "overview" && (
             <div className="space-y-3">

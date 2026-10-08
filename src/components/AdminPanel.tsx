@@ -116,6 +116,11 @@ function AdminPanelInner() {
               <button onClick={() => m.setAdmin({ paused: !m.admin.paused })} className={`w-full rounded-md py-1.5 ${m.admin.paused ? "bg-up/20 text-up" : "bg-down/20 text-down"}`}>
                 {m.admin.paused ? "Reprendre le marché" : "Geler le marché"}
               </button>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={() => m.setAdmin({ trend: 0.8, volatility: 1.6 })} className="rounded-md bg-up/15 py-2 text-xs font-medium text-up">⚡ Bull run</button>
+                <button onClick={() => m.setAdmin({ trend: -0.8, volatility: 2.2 })} className="rounded-md bg-down/15 py-2 text-xs font-medium text-down">⚠ Bear market</button>
+              </div>
+              <button onClick={() => m.setAdmin({ trend: 0, volatility: 1 })} className="w-full rounded-md border py-1.5 text-xs text-muted-foreground">Normaliser le marché</button>
             </div>
           )}
 

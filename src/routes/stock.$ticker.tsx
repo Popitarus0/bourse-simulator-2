@@ -47,6 +47,24 @@ function StockPage() {
     { title: "Décision de la Banque Centrale NX", time: "Dans 3 jours · 14:00", impact: "Très élevé" },
     { title: "Indice industriel fictif", time: "Dans 5 jours · 11:30", impact: "Moyen" },
   ], []);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key.toLowerCase() === "b") void trade(ticker, "buy", 1);
+      if (e.key.toLowerCase() === "s") void trade(ticker, "sell", 1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [ticker, trade]);
+
+  const exportCsv = () => {
+    const rows = [["Date","Ticker","Sens","Quantité","Prix"], ...account.txs.map((tx) => [new Date(tx.time).toISOString(),tx.ticker,tx.side,String(tx.qty),String(tx.price)])];
+    const csv = rows.map((r) => r.map((x) => `"${String(x).replaceAll('"','""')}"`).join(";")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = "nexus-releve.csv"; a.click(); URL.revokeObjectURL(url);
+  };
+
 
   return (
     <AppShell>
@@ -88,6 +106,17 @@ function StockPage() {
             ].map(([k, v]) => (
               <div key={k} className="panel p-3"><div className="text-xs text-muted-foreground">{k}</div><div className="num mt-1">{v}</div></div>
             ))}
+          </div>
+          <div className="panel p-5">
+            <div className="flex items-center justify-between"><div><h2 className="text-sm font-semibold">Profondeur de marché</h2><p className="text-[10px] text-muted-foreground">Carnet simulé · flux temps réel</p></div><div className="flex items-center gap-2 text-[10px] text-muted-foreground"><Keyboard className="h-3.5 w-3.5" /> B = achat · S = vente</div></div>
+            <div className="mt-4 grid grid-cols-2 gap-3">
+              <BookColumn title="BID · ACHAT" rows={orderBook.bids} tone="up" />
+              <BookColumn title="ASK · VENTE" rows={orderBook.asks} tone="down" />
+            </div>
+          </div>
+          <div className="panel p-5">
+            <div className="flex items-center justify-between"><div><h2 className="text-sm font-semibold">Calendrier économique</h2><p className="text-[10px] text-muted-foreground">Événements fictifs susceptibles d’amplifier la volatilité.</p></div><button onClick={exportCsv} className="flex items-center gap-2 rounded-md border px-3 py-1.5 text-xs hover:bg-accent"><Download className="h-3.5 w-3.5" /> CSV</button></div>
+            <div className="mt-4 space-y-2">{calendar.map((e) => <div key={e.title} className="flex items-center gap-3 rounded-lg border bg-background/20 p-3"><div className="flex-1"><div className="text-xs font-medium">{e.title}</div><div className="mt-1 text-[10px] text-muted-foreground">{e.time}</div></div><span className="rounded-full border px-2 py-1 text-[9px] uppercase">{e.impact}</span></div>)}</div>
           </div>
           <div className="panel p-5">
             <h2 className="text-sm font-semibold">À propos</h2>

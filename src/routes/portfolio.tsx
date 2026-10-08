@@ -92,6 +92,7 @@ function Portfolio() {
           </div>
         )}
         </div>
+        </div>
       </div>
     </AppShell>
   );

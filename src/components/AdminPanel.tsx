@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { Shield, X } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { Activity, BarChart3, Gauge, Newspaper, Shield, Users, WalletCards, X } from "lucide-react";
 import { useMarket } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { fmt } from "@/lib/market";
@@ -20,7 +20,7 @@ function AdminPanelInner() {
   const [cash, setCash] = useState("");
   const [ticker, setTicker] = useState(m.stocks[0]?.ticker ?? "");
   const [price, setPrice] = useState("");
-  const [tab, setTab] = useState<"argent" | "flux" | "bourse">("argent");
+  const [tab, setTab] = useState<"overview" | "argent" | "flux" | "bourse" | "news">("overview");
 
   useEffect(() => {
     const move = (e: PointerEvent) => {
@@ -38,6 +38,9 @@ function AdminPanelInner() {
   }, []);
 
   const sel = m.byTicker(ticker);
+  const rising = m.stocks.filter((s) => s.dir > 0).length;
+  const falling = m.stocks.filter((s) => s.dir < 0).length;
+  const totalVolume = m.stocks.reduce((sum, s) => sum + s.volume, 0);
   const panelLeft = typeof window !== "undefined" && pos.x > window.innerWidth / 2 ? pos.x - 330 : pos.x + 60;
   const panelTop = typeof window !== "undefined" ? Math.min(pos.y, window.innerHeight - 460) : pos.y;
 
@@ -59,10 +62,34 @@ function AdminPanelInner() {
             <button onClick={() => setOpen(false)} aria-label="Fermer"><X className="h-4 w-4" /></button>
           </div>
           <div className="mb-4 grid grid-cols-3 gap-1 rounded-lg bg-background/40 p-1">
-            {(["argent", "flux", "bourse"] as const).map((t) => (
-              <button key={t} onClick={() => setTab(t)} className={`rounded-md py-1 capitalize ${tab === t ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>{t}</button>
+            {(["overview", "argent", "flux", "bourse", "news"] as const).map((t) => (
+              <button key={t} onClick={() => setTab(t)} className={`rounded-md py-1 capitalize ${tab === t ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>{t === "overview" ? "Vue" : t === "news" ? "News" : t}</button>
             ))}
           </div>
+
+          {tab === "overview" && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-2">
+                <AdminMetric icon={<WalletCards />} label="Patrimoine" value={fmt(m.portfolioValue) + " NX$"} />
+                <AdminMetric icon={<Users />} label="Positions" value={String(Object.keys(m.account.holdings).length)} />
+                <AdminMetric icon={<Activity />} label="Hausses" value={String(rising)} />
+                <AdminMetric icon={<BarChart3 />} label="Baisses" value={String(falling)} />
+              </div>
+              <div className="rounded-xl border border-white/10 bg-white/[.025] p-3">
+                <div className="mb-2 flex items-center justify-between"><span className="text-xs font-medium">Moteur de marché</span><span className={m.admin.paused ? "text-amber-300" : "text-up"}>{m.admin.paused ? "PAUSE" : "LIVE"}</span></div>
+                <div className="grid grid-cols-2 gap-2 text-[10px] text-muted-foreground">
+                  <span>Vitesse <b className="num text-foreground">{m.admin.speed.toFixed(2)}x</b></span>
+                  <span>Volatilité <b className="num text-foreground">{m.admin.volatility.toFixed(2)}x</b></span>
+                  <span>News <b className="num text-foreground">{(m.admin.newsRate * 100).toFixed(0)}%</b></span>
+                  <span>Volume <b className="num text-foreground">{fmt(totalVolume, 0)}</b></span>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={() => m.setAdmin({ paused: !m.admin.paused })} className="rounded-lg bg-primary/15 py-2 text-xs text-primary">{m.admin.paused ? "Reprendre" : "Geler"} le marché</button>
+                <button onClick={() => m.reset()} className="rounded-lg border border-destructive/30 py-2 text-xs text-destructive">Reset compte</button>
+              </div>
+            </div>
+          )}
 
           {tab === "argent" && (
             <div className="space-y-3">
@@ -92,6 +119,20 @@ function AdminPanelInner() {
             </div>
           )}
 
+          {tab === "news" && (
+            <div className="space-y-2">
+              <div className="mb-2 flex items-center gap-2 text-xs font-medium"><Newspaper className="h-4 w-4 text-primary" />Dernières actualités</div>
+              {m.news.slice(0, 8).map((n) => (
+                <div key={n.id} className="rounded-xl border border-white/5 bg-white/[.025] p-3">
+                  <div className="flex justify-between gap-2"><span className="text-xs font-semibold">{n.ticker}</span><span className={n.impact >= 0 ? "text-up text-[10px]" : "text-down text-[10px]"}>{n.impact >= 0 ? "+" : ""}{(n.impact * 100).toFixed(1)}%</span></div>
+                  <div className="mt-1 text-[11px] text-white/70">{n.title}</div>
+                  <div className="mt-1 text-[9px] text-muted-foreground">{n.category}</div>
+                </div>
+              ))}
+              {!m.news.length && <div className="py-6 text-center text-xs text-muted-foreground">Aucune actualité.</div>}
+            </div>
+          )}
+
           {tab === "bourse" && (
             <div className="space-y-3">
               <select value={ticker} onChange={(e) => setTicker(e.target.value)} className="glass-input w-full">
@@ -118,6 +159,8 @@ function AdminPanelInner() {
     </>
   );
 }
+
+function AdminMetric({ icon, label, value }: { icon: ReactNode; label: string; value: string }) { return <div className="rounded-xl border border-white/10 bg-white/[.025] p-3"><div className="flex items-center gap-2 text-[9px] uppercase tracking-wider text-muted-foreground">{icon}{label}</div><div className="num mt-1 text-sm font-semibold">{value}</div></div>; }
 
 function Slider({ label, value, min, max, step, suffix = "", onChange }: { label: string; value: number; min: number; max: number; step: number; suffix?: string; onChange: (v: number) => void }) {
   return (

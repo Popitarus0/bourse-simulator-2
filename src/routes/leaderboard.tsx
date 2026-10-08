@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Trophy } from "lucide-react";
 import { AppShell, Delta } from "@/components/AppShell";
 import { START_CASH, useMarket } from "@/lib/store";
+import { useAuth } from "@/lib/auth";
 import { fmt } from "@/lib/market";
 
 export const Route = createFileRoute("/leaderboard")({
@@ -17,8 +18,12 @@ export const Route = createFileRoute("/leaderboard")({
 });
 
 function Leaderboard() {
-  const { players, portfolioValue } = useMarket();
-  const all = [...players, { name: "Vous", value: portfolioValue, isYou: true }].sort((a, b) => b.value - a.value);
+  const { players, portfolioValue, adminTraders, refreshAdminTraders } = useMarket();
+  const { isAdmin } = useAuth();
+  const all = isAdmin
+    ? adminTraders.map((p) => ({ name: p.name, value: p.value, isYou: false, id: p.id })).sort((a, b) => b.value - a.value)
+    : [...players, { name: "Vous", value: portfolioValue, isYou: true }].sort((a, b) => b.value - a.value);
+  if (isAdmin && !adminTraders.length) void refreshAdminTraders();
   const myRank = all.findIndex((p) => p.isYou) + 1;
   return (
     <AppShell>
@@ -26,7 +31,7 @@ function Leaderboard() {
         <div className="market-flow-lines" aria-hidden="true"><span /><span /><span /></div>
         <div className="relative z-10">
       <div className="mb-4 flex flex-wrap items-end gap-4">
-        <div><h1 className="text-xl font-semibold">Classement · Saison 1</h1><p className="text-sm text-muted-foreground">Mis à jour en continu</p></div>
+        <div><h1 className="text-xl font-semibold">Classement · Saison 1</h1><p className="text-sm text-muted-foreground">{isAdmin ? "Performances réelles des comptes" : "Classement public de la saison"}</p></div>
         <div className="panel ml-auto px-4 py-2 text-sm">Votre rang : <span className="num text-gold">#{myRank}</span> / {all.length}</div>
       </div>
       <div className="panel divide-y">

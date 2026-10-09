@@ -17,7 +17,22 @@ export const Route = createFileRoute("/trader/$name")({
   component: Trader,
 });
 
-function RealTraderProfile({ trader }: { trader: import("@/lib/store").AdminTrader }) {\n  const all = useMarket().adminTraders.sort((a, b) => b.value - a.value);\n  return <AppShell>\n    <Link to="/leaderboard" className="text-sm text-muted-foreground">← Classement</Link>\n    <div className="mt-3 mb-4 flex items-center gap-4"><div className="flex h-16 w-16 items-center justify-center rounded-full bg-accent text-xl font-semibold">{trader.name.slice(0, 2).toUpperCase()}</div><div><h1 className="text-xl font-semibold">{trader.name}</h1><p className="text-sm text-muted-foreground">Compte trader NEXUS MARKETS</p></div></div>\n    <div className="grid grid-cols-2 gap-4 md:grid-cols-4">\n      <div className="panel p-4"><div className="text-xs text-muted-foreground">Patrimoine</div><div className="num mt-1 text-lg">{fmt(trader.value,0)} NX$</div></div>\n      <div className="panel p-4"><div className="text-xs text-muted-foreground">Liquidités</div><div className="num mt-1 text-lg">{fmt(trader.cash,0)} NX$</div></div>\n      <div className="panel p-4"><div className="text-xs text-muted-foreground">Positions</div><div className="num mt-1 text-lg">{Object.keys(trader.holdings).length}</div></div>\n      <div className="panel p-4"><div className="text-xs text-muted-foreground">Transactions</div><div className="num mt-1 text-lg">{trader.txs.length}</div></div>\n    </div>\n    <div className="panel mt-4 divide-y"><div className="px-4 py-3 font-semibold">Positions</div>{Object.entries(trader.holdings).map(([ticker,h]) => <Link key={ticker} to="/stock/$ticker" params={{ticker}} className="flex justify-between px-4 py-2 text-sm hover:bg-accent"><span>{ticker}</span><span className="num">{h.qty} titres · {fmt(h.avg)} NX$</span></Link>)}</div>\n  </AppShell>;\n}\n\nfunction Trader() {
+function RealTraderProfile({ trader }: { trader: import("@/lib/store").AdminTrader }) {
+  const all = useMarket().adminTraders.sort((a, b) => b.value - a.value);
+  return <AppShell>
+    <Link to="/leaderboard" className="text-sm text-muted-foreground">← Classement</Link>
+    <div className="mt-3 mb-4 flex items-center gap-4"><div className="flex h-16 w-16 items-center justify-center rounded-full bg-accent text-xl font-semibold">{trader.name.slice(0, 2).toUpperCase()}</div><div><h1 className="text-xl font-semibold">{trader.name}</h1><p className="text-sm text-muted-foreground">Compte trader NEXUS MARKETS</p></div></div>
+    <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+      <div className="panel p-4"><div className="text-xs text-muted-foreground">Patrimoine</div><div className="num mt-1 text-lg">{fmt(trader.value,0)} NX$</div></div>
+      <div className="panel p-4"><div className="text-xs text-muted-foreground">Liquidités</div><div className="num mt-1 text-lg">{fmt(trader.cash,0)} NX$</div></div>
+      <div className="panel p-4"><div className="text-xs text-muted-foreground">Positions</div><div className="num mt-1 text-lg">{Object.keys(trader.holdings).length}</div></div>
+      <div className="panel p-4"><div className="text-xs text-muted-foreground">Transactions</div><div className="num mt-1 text-lg">{trader.txs.length}</div></div>
+    </div>
+    <div className="panel mt-4 divide-y"><div className="px-4 py-3 font-semibold">Positions</div>{Object.entries(trader.holdings).map(([ticker,h]) => <Link key={ticker} to="/stock/$ticker" params={{ticker}} className="flex justify-between px-4 py-2 text-sm hover:bg-accent"><span>{ticker}</span><span className="num">{h.qty} titres · {fmt(h.avg)} NX$</span></Link>)}</div>
+  </AppShell>;
+}
+
+function Trader() {
   const { name } = Route.useParams();
   const { players, stocks, portfolioValue, adminTraders } = useMarket();
   const { isAdmin } = useAuth();

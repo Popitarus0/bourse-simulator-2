@@ -39,7 +39,7 @@ function Trader() {
   const p = players.find((x) => x.name === name);
   const real = isAdmin ? adminTraders.find((x) => x.name === name) : undefined;
   if (!p && !real) return <AppShell><p className="text-muted-foreground">Trader introuvable. <Link to="/leaderboard" className="text-primary">Retour</Link></p></AppShell>;
-  if (!p && real) return <RealTraderProfile trader={real} />;
+  if (!p) return <RealTraderProfile trader={real!} />;
   const st = traderStats(name, p.value, stocks);
   const all = [...players, { name: "__you", value: portfolioValue }].sort((a, b) => b.value - a.value);
   const box = (l: string, v: React.ReactNode) => <div className="panel p-4"><div className="text-xs text-muted-foreground">{l}</div><div className="num mt-1 text-lg">{v}</div></div>;

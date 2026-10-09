@@ -193,7 +193,15 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      public_leaderboard: {
+        Row: {
+          created_at: string
+          name: string
+          user_id: string
+          value: number
+        }
+        Relationships: []
+      }
     }
     Functions: {
       admin_list_accounts: { Args: never; Returns: Json }

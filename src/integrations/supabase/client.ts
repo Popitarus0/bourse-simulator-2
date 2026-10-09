@@ -29,8 +29,8 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 function readSupabaseConfig() {
   const metaEnv = import.meta.env;
   const runtimeEnv = typeof process !== 'undefined' ? process.env : undefined;
-  const url = metaEnv?.['VITE_SUPABASE_URL'] || runtimeEnv?.['SUPABASE_URL'];
-  const key = metaEnv?.['VITE_SUPABASE_PUBLISHABLE_KEY'] || runtimeEnv?.['SUPABASE_PUBLISHABLE_KEY'];
+  const url = metaEnv?.['VITE_SUPABASE_URL'] || runtimeEnv?.['SUPABASE_URL'] || 'https://xdngkbkvtydeotlojgfc.supabase.co';
+  const key = metaEnv?.['VITE_SUPABASE_PUBLISHABLE_KEY'] || runtimeEnv?.['SUPABASE_PUBLISHABLE_KEY'] || 'sb_publishable_Hs2QIhl5LdYthVMHA_Js_g_cCyXkTA9';
   return { url, key };
 }
 

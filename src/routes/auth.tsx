@@ -15,11 +15,11 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
-type Mode = "in" | "up" | "forgot" | "reset";
+type Mode = "in" | "forgot" | "reset";
 void 0;
 
 function AuthPage() {
-  const { session, signIn, signUp, sendReset } = useAuth();
+  const { session, signIn, sendReset } = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>("in");
   const [email, setEmail] = useState("");
@@ -42,12 +42,6 @@ function AuthPage() {
         setMsg(error ? { ok: false, text: error } : { ok: true, text: "Si un compte existe, un lien de réinitialisation vient d'être envoyé par e-mail." });
         return;
       }
-      if (mode === "up") {
-        const error = await signUp(email, password, email.trim().split("@")[0]);
-        if (error) setMsg({ ok: false, text: error });
-        else { setMsg({ ok: true, text: "Compte créé ! Clique sur le lien de confirmation reçu par e-mail, puis connecte-toi." }); setPassword(""); setMode("in"); }
-        return;
-      }
       const error = await signIn(email, password);
       setMsg(error ? { ok: false, text: error } : { ok: true, text: "Connexion réussie." });
     } catch (error) {
@@ -57,14 +51,12 @@ function AuthPage() {
     }
   };
 
-  const title = mode === "up" ? "Créer ton compte" : mode === "forgot" ? "Récupérer ton compte" : mode === "reset" ? "Nouveau mot de passe" : "Ravi de te revoir";
-  const subtitle = mode === "up"
-    ? "Crée ton identité de trader et conserve ton portefeuille."
-    : mode === "forgot"
-      ? "Entre ton e-mail pour recevoir un lien de réinitialisation."
-      : mode === "reset"
-        ? "Choisis un nouveau mot de passe pour sécuriser ton compte."
-        : "Connecte-toi pour retrouver ton portefeuille.";
+  const title = mode === "forgot" ? "Récupérer ton compte" : mode === "reset" ? "Nouveau mot de passe" : "Ravi de te revoir";
+  const subtitle = mode === "forgot"
+    ? "Entre ton e-mail pour recevoir un lien de réinitialisation."
+    : mode === "reset"
+      ? "Choisis un nouveau mot de passe pour sécuriser ton compte."
+      : "Connecte-toi pour retrouver ton portefeuille.";
 
   return (
     <div className="relative min-h-[calc(100vh-2rem)] overflow-hidden rounded-[2rem] border border-white/10 bg-slate-950/50 p-4 shadow-2xl backdrop-blur-2xl md:p-8">
@@ -94,12 +86,6 @@ function AuthPage() {
             <p className="mt-1 text-xs leading-5 text-muted-foreground">{subtitle}</p>
           </div>
 
-          {mode !== "reset" && mode !== "forgot" && (
-            <div className="mb-5 grid grid-cols-2 rounded-xl border border-white/10 bg-white/[.03] p-1">
-              <button onClick={() => { setMode("in"); setMsg(null); }} className={"rounded-lg py-2 text-xs font-medium transition " + (mode === "in" ? "bg-white/10 text-white" : "text-muted-foreground")}>Connexion</button>
-              <button onClick={() => { setMode("up"); setMsg(null); }} className={"rounded-lg py-2 text-xs font-medium transition " + (mode === "up" ? "bg-white/10 text-white" : "text-muted-foreground")}>Inscription</button>
-            </div>
-          )}
 
           <form onSubmit={submit} className="space-y-4">
             {mode !== "reset" && (
@@ -123,8 +109,8 @@ function AuthPage() {
             )}
 
             <button disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary py-3 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/15 transition hover:opacity-90 disabled:opacity-50">
-              {busy ? "Chargement…" : mode === "in" ? "Se connecter" : mode === "up" ? "Créer mon compte" : mode === "forgot" ? "Continuer" : "Changer le mot de passe"}
-              {!busy && mode !== "forgot" && mode !== "reset" && <ArrowRight className="h-4 w-4" />}
+              {busy ? "Chargement…" : mode === "in" ? "Se connecter" : mode === "forgot" ? "Continuer" : "Changer le mot de passe"}
+              {!busy && mode === "in" && <ArrowRight className="h-4 w-4" />}
             </button>
           </form>
 

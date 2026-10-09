@@ -251,6 +251,6 @@ function calculateRsi(values: number[]) {
   if (losses === 0) return 100;
   return 100 - 100 / (1 + gains / losses);
 }
-function Indicator({ label, value, tone }: { label: string; value: string; tone?: "up" | "down" }) {
+function Indicator({ label, value, tone }: { label: string; value: string; tone?: "up" | "down" | undefined }) {
   return <div className="rounded-lg border bg-background/30 p-2"><div className="text-[9px] uppercase text-muted-foreground">{label}</div><div className={`num mt-1 text-xs ${tone === "up" ? "text-up" : tone === "down" ? "text-down" : ""}`}>{value}</div></div>;
 }

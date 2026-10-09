@@ -9,7 +9,7 @@ export interface Holding { qty: number; avg: number }
 export interface Tx { id: string; ticker: string; side: "buy" | "sell"; qty: number; price: number; time: number }
 
 export interface PendingOrder { id: string; ticker: string; side: "buy" | "sell"; type: "limit" | "stop"; qty: number; trigger: number; createdAt: number }
-export interface AdminTrader { id: string; name: string; email?: string; cash: number; holdings: Record<string, Holding>; txs: Tx[]; value: number; joined?: number }
+export interface AdminTrader { id: string; name: string; email?: string; cash: number; holdings: Record<string, Holding>; txs: Tx[]; value: number; joined?: number | undefined }
 interface Account { cash: number; holdings: Record<string, Holding>; txs: Tx[]; watchlist: string[]; pendingOrders: PendingOrder[] }
 
 interface Ctx {

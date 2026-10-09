@@ -19,7 +19,7 @@ type Mode = "in" | "up" | "forgot" | "reset";
 void 0;
 
 function AuthPage() {
-  const { session, signIn, signUp, sendReset, signInGoogle } = useAuth();
+  const { session, signIn, signUp, sendReset } = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState<Mode>("in");
   const [email, setEmail] = useState("");

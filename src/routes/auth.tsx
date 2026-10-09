@@ -107,7 +107,7 @@ function AuthPage() {
                 <label className="mb-2 block text-xs font-medium text-white/70">E-mail</label>
                 <div className="relative">
                   <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
-                  <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="toi@exemple.fr" className="glass-input w-full pl-10 text-sm outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/15" />
+                  <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} id="auth-email" placeholder="toi@exemple.fr" className="glass-input w-full pl-10 text-sm outline-none focus:border-primary/60 focus:ring-2 focus:ring-primary/15" />
                 </div>
               </div>
             )}
@@ -135,9 +135,9 @@ function AuthPage() {
           {mode !== "forgot" && mode !== "reset" && (
             <>
               <div className="my-5 flex items-center gap-3"><div className="h-px flex-1 bg-white/10" /><span className="text-[10px] text-white/30">OU</span><div className="h-px flex-1 bg-white/10" /></div>
-              <button type="button" onClick={async () => { setMsg(null); const err = await signInGoogle(); if (err) setMsg({ ok: false, text: err }); }} className="flex w-full items-center justify-center gap-3 rounded-xl border border-white/10 bg-white/5 py-3 text-sm font-medium text-white/80 transition hover:bg-white/10">
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-[11px] font-bold text-slate-900">G</span>
-                Continuer avec Google
+              <button type="button" onClick={() => { setMode("in"); setMsg(null); document.getElementById("auth-email")?.focus(); }} className="flex w-full items-center justify-center gap-3 rounded-xl border border-white/10 bg-white/5 py-3 text-sm font-medium text-white/80 transition hover:bg-white/10">
+                <Mail className="h-4 w-4" />
+                Continuer avec e-mail
               </button>
             </>
           )}

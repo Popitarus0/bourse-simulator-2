@@ -1,12 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Trophy } from "lucide-react";
 import { AppShell, Delta } from "@/components/AppShell";
 import { START_CASH, useMarket } from "@/lib/store";
 import { useAuth } from "@/lib/auth";
 import { fmt } from "@/lib/market";
 import { isSupabaseConfigured, supabase } from "@/integrations/supabase/client";
-import { useState } from "react";
 
 export const Route = createFileRoute("/leaderboard")({
   head: () => ({
@@ -54,7 +53,7 @@ function Leaderboard() {
     void load();
     const interval = window.setInterval(() => void load(), 15000);
     return () => { alive = false; window.clearInterval(interval); };
-  }, []);
+  }, [session?.user.id]);
 
   const all = isSupabaseConfigured()
     ? [...registered.map((p) => ({ ...p, isYou: p.id === session?.user.id })),

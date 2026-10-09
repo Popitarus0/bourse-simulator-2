@@ -124,7 +124,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInGoogle = async () => {
-    if (!isSupabaseConfigured()) return "Google nécessite Supabase. Le mode navigateur utilise e-mail + mot de passe.";
     const res = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin + "/auth" });
     const err = (res as { error?: { message?: string } } | undefined)?.error;
     return err ? translate(err.message ?? "Connexion Google impossible.") : null;

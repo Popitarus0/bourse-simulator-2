@@ -86,26 +86,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (_email: string, _password: string, _name?: string) => {
     return "Les inscriptions sont temporairement suspendues.";
-    /* Registration flow kept below for easy reactivation by the site owner.
-    if (_password.length < 8) return "Le mot de passe doit contenir au moins 8 caractères.";
-    if (!isSupabaseConfigured()) {
-      const normalized = email.trim().toLowerCase(); const accounts = readLocalAccounts();
-      if (accounts.some((a) => a.email === normalized)) return "Un compte existe déjà avec cette adresse.";
-      const account: LocalAccount = { id: "local-" + crypto.randomUUID(), email: normalized, passwordHash: await hashPassword(password), name: name?.trim().slice(0, 32) || normalized.split("@")[0], createdAt: new Date().toISOString(), isAdmin: normalized === LOCAL_ADMIN_EMAIL };
-      writeLocalAccounts([...accounts, account]);
-      localStorage.setItem(LOCAL_SESSION_KEY, normalized);
-      localStorage.setItem("nexus-profile-v2:" + account.id, JSON.stringify({ name: account.name, bio: "", joined: Date.now(), title: "Market Explorer", avatarStyle: "orb", accent: "blue", banner: "aurora", status: "Actif" }));
-      setSession(localSession(account)); setIsAdmin(account.isAdmin); return null;
-    }
-    const { data, error } = await supabase.auth.signUp({
-      email: email.trim().toLowerCase(),
-      password,
-      options: { emailRedirectTo: window.location.origin + "/profile", data: { name: name?.trim().slice(0, 32) } },
-    });
-    if (error) return translate(error.message);
-    if (data.user && data.user.identities?.length === 0) return "Un compte existe déjà avec cette adresse.";
-    return null;
-    */
   };
 
   const sendReset = async (email: string) => {

@@ -84,8 +84,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return error ? translate(error.message) : null;
   };
 
-  const signUp = async (email: string, password: string, name?: string) => {
-    if (password.length < 8) return "Le mot de passe doit contenir au moins 8 caractères.";
+  const signUp = async (_email: string, _password: string, _name?: string) => {
+    return "Les inscriptions sont temporairement suspendues.";
+    /* Registration flow kept below for easy reactivation by the site owner.
+    if (_password.length < 8) return "Le mot de passe doit contenir au moins 8 caractères.";
     if (!isSupabaseConfigured()) {
       const normalized = email.trim().toLowerCase(); const accounts = readLocalAccounts();
       if (accounts.some((a) => a.email === normalized)) return "Un compte existe déjà avec cette adresse.";
@@ -103,6 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (error) return translate(error.message);
     if (data.user && data.user.identities?.length === 0) return "Un compte existe déjà avec cette adresse.";
     return null;
+    */
   };
 
   const sendReset = async (email: string) => {
